@@ -7,7 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "setup:demo": "node --env-file=.env.local scripts/setup-demo.mjs"
+    "setup:demo": "node --env-file=.env.local scripts/setup-demo.mjs",
+    "test": "tsx --test tests/unit/*.test.ts",
+    "test:e2e": "node --env-file=.env.local tests/e2e/flow.mjs",
+    "test:ai": "node --env-file=.env.local tests/e2e/ai-conversation.mjs"
   },
   "dependencies": {
     "@google/genai": "^3.6.1",
@@ -28,6 +31,7 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^5"
   }
 }
