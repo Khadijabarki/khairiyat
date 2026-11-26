@@ -52,6 +52,9 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
   const [errorText, setErrorText] = useState("");
   const [alerts, setAlerts] = useState<RaisedAlert[]>([]);
   const alertsRef = useRef<RaisedAlert[]>([]);
+  // Whether this call's summary reached the family: shown on screen after the call.
+  const [summaryState, setSummaryState] = useState<"none" | "sent" | "failed">("none");
+  const summarySentRef = useRef(false);
 
   // Everything that belongs to the call that is running right now.
   const sessionRef = useRef<Session | null>(null);
@@ -154,10 +157,38 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
     playerRef.current = null;
   }
 
+  // Sends the conversation to the server, which makes and saves the family summary
+  // (only the summary and scores are saved, never this transcript).
+  // It runs ONCE per call, however the call ends: the end button, a dropped connection,
+  // the time limit, or the page being closed. keepalive lets the request finish
+  // even while the page is closing.
+  async function sendSummary(keepalive: boolean): Promise<boolean> {
+    if (summarySentRef.current) return true;
+    if (!turnsRef.current.some((t) => t.role === "ammi" && t.text.trim())) return false; // the parent said nothing
+    summarySentRef.current = true;
+    try {
+      const res = await fetch("/api/checkin/finish", {
+        method: "POST",
+        keepalive,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          parentId,
+          turns: turnsRef.current,
+          alerts: alertsRef.current.map((a) => ({ category: a.rule.id, reason: a.reason, source: a.source })),
+        }),
+      });
+      return res.ok;
+    } catch {
+      return false;
+    }
+  }
+
   function fail(message: string) {
     releaseCall();
     setErrorText(message);
     setStatus("error");
+    // Whatever was said before the connection dropped still reaches the family.
+    sendSummary(false).then((ok) => setSummaryState(ok ? "sent" : "none"));
   }
 
   async function start() {
@@ -171,6 +202,8 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
     turnsRef.current = [];
     setTurns([]);
     alertsRef.current = [];
+    summarySentRef.current = false;
+    setSummaryState("none");
     setAlerts([]);
 
     // Tell other open Khairiyat tabs to end their call, so two voices never play together.
@@ -253,25 +286,11 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
 
   async function end() {
     if (!activeRef.current) return;
-    const finishedTurns = turnsRef.current;
     releaseCall();
     setStatus("ending");
-
-    // Send the conversation to the server to make the family summary.
-    // Only the summary and scores are saved on the server, never this transcript.
-    try {
-      await fetch("/api/checkin/finish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          parentId,
-          turns: finishedTurns,
-          alerts: alertsRef.current.map((a) => ({ category: a.rule.id, reason: a.reason, source: a.source })),
-        }),
-      });
-    } catch {
-      // Not ready yet or offline: the conversation still ends normally.
-    }
+    const hadConversation = turnsRef.current.some((t) => t.role === "ammi");
+    const ok = await sendSummary(false);
+    setSummaryState(!hadConversation ? "none" : ok ? "sent" : "failed");
     setStatus("done");
   }
 
@@ -285,13 +304,18 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
     };
     channelRef.current = channel;
 
-    const onPageHide = () => releaseCall();
+    // Page closed or left in the middle of a call: still send the summary, then stop everything.
+    const onPageHide = () => {
+      if (activeRef.current) sendSummary(true);
+      releaseCall();
+    };
     window.addEventListener("pagehide", onPageHide);
 
     return () => {
       window.removeEventListener("pagehide", onPageHide);
       channel.close();
       channelRef.current = null;
+      if (activeRef.current) sendSummary(true);
       releaseCall();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- set up once; the functions only use refs
@@ -391,6 +415,17 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
         {status === "done" && (
           <p className="max-w-xl text-center text-[clamp(1.2rem,5.5vw,1.6rem)] leading-[2.2]">
             شکریہ {nicknameUr}! اپنا خیال رکھیے گا۔
+          </p>
+        )}
+        {/* Confirms the family was told (or that it failed), after the call. */}
+        {summaryState === "sent" && (
+          <p className="text-center text-[clamp(0.95rem,4vw,1.1rem)] leading-[2.2] text-emerald-800">
+            ✓ {childNameUr} کو آج کا خلاصہ بھیج دیا گیا۔
+          </p>
+        )}
+        {summaryState === "failed" && (
+          <p className="text-center text-[clamp(0.95rem,4vw,1.1rem)] leading-[2.2] text-rose-700">
+            خلاصہ نہیں بھیجا جا سکا۔ انٹرنیٹ چیک کریں۔
           </p>
         )}
         {errorText && (
