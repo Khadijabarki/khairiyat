@@ -8,6 +8,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { connection } from "next/server";
 
 export type FamilyUser = { id: string; email: string };
 
@@ -38,6 +39,9 @@ export async function authClient() {
 
 // The signed-in family member, verified with Supabase, or null.
 export async function currentUser(): Promise<FamilyUser | null> {
+  // Who is signed in is different for every request: tell Next.js never to prerender this.
+  // (Supabase checks token expiry with the current time, which can't be prerendered.)
+  await connection();
   try {
     const supabase = await authClient();
     const { data, error } = await supabase.auth.getUser();
