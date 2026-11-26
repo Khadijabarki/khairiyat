@@ -17,8 +17,8 @@ type Props = {
 };
 
 const W = 300;
-const H = 120;
-const PAD = { top: 14, right: 12, bottom: 22, left: 12 };
+const H = 130;
+const PAD = { top: 16, right: 14, bottom: 26, left: 12 };
 
 export default function TrendChart({ title, color, points, min, max, note }: Props) {
   const innerW = W - PAD.left - PAD.right;
@@ -51,7 +51,7 @@ export default function TrendChart({ title, color, points, min, max, note }: Pro
         {[min, max].map((v) => (
           <g key={v}>
             <line x1={PAD.left} x2={W - PAD.right} y1={y(v)} y2={y(v)} stroke="#e7e5e4" strokeWidth={1} />
-            <text x={W - PAD.right} y={y(v) - 3} textAnchor="end" fontSize={9} fill="#78716c">
+            <text x={W - PAD.right} y={y(v) - 3} textAnchor="end" fontSize={12} fill="#78716c">
               {v}
             </text>
           </g>
@@ -77,10 +77,10 @@ export default function TrendChart({ title, color, points, min, max, note }: Pro
         {/* Day labels: first and last only, to keep it uncluttered */}
         {points.length > 0 && (
           <>
-            <text x={x(0)} y={H - 6} fontSize={9} fill="#78716c">
+            <text x={x(0)} y={H - 6} fontSize={12} fill="#78716c">
               {points[0].label}
             </text>
-            <text x={x(points.length - 1)} y={H - 6} fontSize={9} fill="#78716c" textAnchor="end">
+            <text x={x(points.length - 1)} y={H - 6} fontSize={12} fill="#78716c" textAnchor="end">
               {points[points.length - 1].label}
             </text>
           </>

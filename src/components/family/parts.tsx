@@ -11,7 +11,7 @@ const RISK_STYLE: Record<RiskLevel, { label: string; icon: string; className: st
 export function RiskBadge({ level }: { level: RiskLevel }) {
   const s = RISK_STYLE[level];
   return (
-    <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-sm font-medium ring-1 ${s.className}`}>
+    <span className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-0.5 text-sm font-medium ring-1 ${s.className}`}>
       <span aria-hidden>{s.icon}</span>
       {s.label}
     </span>
