@@ -9,7 +9,7 @@ import { LIVE_MODEL } from "@/lib/config";
 import { getParent, getRecentCheckins } from "@/lib/data";
 import { buildSystemPrompt } from "@/lib/prompt";
 import { SAFETY_RULES } from "@/lib/safety";
-import { clientIp, isSameOrigin, isValidId, jsonError, rateLimit, readJson } from "@/lib/security";
+import { clientIp, isSameOrigin, isValidId, jsonError, rateLimit, readJson, safeErrorInfo } from "@/lib/security";
 
 // The tool the AI calls by itself when it hears an emergency or a worry.
 // NON_BLOCKING: the conversation keeps going while the app shows help and alerts the family.
@@ -95,8 +95,9 @@ export async function POST(request: Request) {
     // no-store: a token must never be saved by the browser or any proxy.
     return Response.json({ token: token.name, model: LIVE_MODEL }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
-    // Log only the error message: never the prompt, which contains the parent's details.
-    console.error("live-token: Gemini token request failed:", err instanceof Error ? err.message : "unknown error");
+    // Log only the error type and status: never the message (it can contain the API key)
+    // and never the prompt (it contains the parent's details).
+    console.error("live-token: Gemini token request failed:", safeErrorInfo(err));
     return jsonError("Could not start the conversation", 502);
   }
 }

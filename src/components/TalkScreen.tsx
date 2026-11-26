@@ -231,8 +231,9 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
       timerRef.current = setTimeout(() => end(), MAX_CALL_MS);
     } catch (err) {
       if (!isCurrent()) return;
-      // Log only the error type, never the conversation, to keep it private.
-      console.error("Call failed:", err instanceof Error ? err.message : err);
+      // Log only the error type: never the message (it could contain the session token)
+      // and never the conversation, to keep it private.
+      console.error("Call failed:", err instanceof Error ? err.name : "unknown error");
       const micDenied = err instanceof DOMException && err.name === "NotAllowedError";
       fail(
         micDenied

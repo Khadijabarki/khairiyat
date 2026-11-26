@@ -76,6 +76,16 @@ export async function readJson(request: Request, maxBytes: number): Promise<Reco
   }
 }
 
+// A safe description of an error for the server logs.
+// Error messages from libraries can contain secrets (for example a bad API key
+// copied into an "invalid header value" message), so we never log the message
+// itself: only the error's type and HTTP status code, if it has one.
+export function safeErrorInfo(err: unknown): string {
+  if (!(err instanceof Error)) return "unknown error";
+  const status = (err as { status?: unknown }).status;
+  return typeof status === "number" ? `${err.name} (HTTP ${status})` : err.name;
+}
+
 // A JSON error response that browsers and proxies must never cache.
 export function jsonError(message: string, status: number): Response {
   return Response.json({ error: message }, { status, headers: { "Cache-Control": "no-store" } });
