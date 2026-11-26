@@ -39,7 +39,9 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
-!.env.example
 
+# Vercel CLI settings (local only)
 .vercel
-.env*
+
+# Keep the env template in git (it has no secrets); all other .env files stay private
+!.env.example
