@@ -25,7 +25,7 @@ export type Turn = { role: "ammi" | "khairiyat"; text: string };
 // inside the circle on small phones ("خیریت" is already shown in the header).
 const STATUS_TEXT: Record<Status, string> = {
   idle: "بات کریں",
-  connecting: "جوڑ رہے ہیں…",
+  connecting: "رابطہ ہو رہا ہے…",
   listening: "سن رہی ہے…",
   speaking: "بول رہی ہے…",
   ending: "اللہ حافظ…",
