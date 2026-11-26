@@ -3,7 +3,8 @@ import { notFound } from "next/navigation";
 import TalkScreen from "@/components/TalkScreen";
 import { getParent, getParents } from "@/lib/data";
 
-export const metadata: Metadata = { title: "Khairiyat" };
+// noindex: a parent's personal talk page must never show up in Google search results.
+export const metadata: Metadata = { title: "Khairiyat", robots: { index: false, follow: false } };
 
 // This page is opened directly from a link or QR code, not by navigating inside the app,
 // so it doesn't need Next.js's "instant navigation" check (which warned about reading params).
