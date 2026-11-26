@@ -21,12 +21,13 @@ type Status = "idle" | "connecting" | "listening" | "speaking" | "ending" | "don
 
 export type Turn = { role: "ammi" | "khairiyat"; text: string };
 
-// Text shown in big Urdu letters for each state.
+// Text shown inside the big circle for each state. Kept short so it always fits
+// inside the circle on small phones ("خیریت" is already shown in the header).
 const STATUS_TEXT: Record<Status, string> = {
   idle: "بات کریں",
   connecting: "جوڑ رہے ہیں…",
-  listening: "خیریت سن رہی ہے…",
-  speaking: "خیریت بول رہی ہے…",
+  listening: "سن رہی ہے…",
+  speaking: "بول رہی ہے…",
   ending: "اللہ حافظ…",
   done: "اللہ حافظ",
   error: "دوبارہ کوشش کریں",
@@ -300,27 +301,34 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
   return (
     // Layout from top to bottom: header, big circle, what Khairiyat just said, end button, footer.
     // Everything fits on one screen so Ammi never has to scroll.
-    <main dir="rtl" className="font-urdu flex min-h-dvh flex-col items-center bg-amber-50 px-4 pb-4 pt-6 text-stone-800">
-      <header className="text-center">
-        <h1 className="text-4xl leading-[2] text-emerald-800">خیریت</h1>
-        <p className="text-lg leading-[2.2] text-stone-600">
+    //
+    // Responsive sizing: sizes use clamp() and min() so they grow and shrink smoothly with the
+    // screen, from small phones (~320px wide) to tablets and laptops. Circles also look at the
+    // screen height (dvh), so they fit on short phones and in landscape.
+    <main
+      dir="rtl"
+      className="font-urdu flex min-h-dvh flex-col items-center bg-amber-50 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-stone-800"
+    >
+      <header className="w-full max-w-2xl text-center">
+        <h1 className="text-[clamp(2rem,9vw,2.75rem)] leading-[2] text-emerald-800">خیریت</h1>
+        <p className="text-[clamp(1rem,4.2vw,1.2rem)] leading-[2.2] text-stone-600">
           السلام علیکم {nicknameUr}! {childNameUr} نے آپ کا حال پوچھا ہے۔
         </p>
       </header>
 
-      <section className="mt-4 flex w-full flex-1 flex-col items-center justify-center gap-5">
+      <section className="mt-3 flex w-full max-w-2xl flex-1 flex-col items-center justify-center gap-[clamp(0.75rem,3dvh,1.5rem)]">
         {!inCall ? (
           <button
             onClick={start}
             disabled={status === "ending"}
-            className="flex h-60 w-60 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-5xl leading-[2] text-white shadow-2xl transition active:scale-95 disabled:opacity-60 sm:h-72 sm:w-72"
+            className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-emerald-600 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
           >
             {status === "done" ? "پھر بات کریں" : STATUS_TEXT[status === "error" ? "error" : "idle"]}
           </button>
         ) : (
           // Smaller circle during the call, so the words below have room.
           <div
-            className={`flex h-44 w-44 shrink-0 items-center justify-center rounded-full text-2xl leading-[2] text-white shadow-2xl sm:h-52 sm:w-52 ${
+            className={`flex size-[max(7.5rem,min(46vw,28dvh,13rem))] shrink-0 items-center justify-center rounded-full px-4 text-center text-[clamp(1.05rem,min(5.5vw,4dvh),1.75rem)] leading-[1.9] whitespace-nowrap text-white shadow-2xl ${
               status === "speaking" ? "animate-pulse bg-emerald-500" : "bg-emerald-700"
             }`}
           >
@@ -331,32 +339,34 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
         {/* Red help panel for an urgent situation. It stays after the call ends,
             so the call buttons are always one tap away. */}
         {urgent && (
-          <div role="alert" className="w-full max-w-xl rounded-3xl bg-rose-600 p-5 text-center text-white shadow-2xl">
-            <p className="text-3xl leading-[2]">⚠️ {urgent.rule.titleUr}</p>
-            {urgent.rule.tipsUr && <p className="mt-1 text-xl leading-[2]">{urgent.rule.tipsUr}</p>}
-            <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:justify-center">
+          <div role="alert" className="w-full max-w-xl rounded-3xl bg-rose-600 p-[clamp(0.75rem,4vw,1.25rem)] text-center text-white shadow-2xl">
+            <p className="text-[clamp(1.4rem,6.5vw,1.9rem)] leading-[2]">⚠️ {urgent.rule.titleUr}</p>
+            {urgent.rule.tipsUr && (
+              <p className="mt-1 text-[clamp(1rem,4.5vw,1.25rem)] leading-[2]">{urgent.rule.tipsUr}</p>
+            )}
+            <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
                 href={`tel:${helpline.number}`}
-                className="rounded-full bg-white px-6 py-2 text-2xl leading-[2] text-rose-700 shadow-lg active:scale-95"
+                className="rounded-full bg-white px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-rose-700 shadow-lg active:scale-95"
               >
                 📞 {helpline.labelUr} پر کال
               </a>
               {childPhone && (
                 <a
                   href={`tel:${childPhone}`}
-                  className="rounded-full bg-rose-900 px-6 py-2 text-2xl leading-[2] text-white shadow-lg active:scale-95"
+                  className="rounded-full bg-rose-900 px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-white shadow-lg active:scale-95"
                 >
                   📞 {childNameUr} کو کال
                 </a>
               )}
             </div>
-            <p className="mt-3 text-lg leading-[2]">{childNameUr} کو بتایا جا رہا ہے۔</p>
+            <p className="mt-2 text-[clamp(0.95rem,4vw,1.125rem)] leading-[2]">{childNameUr} کو بتایا جا رہا ہے۔</p>
           </div>
         )}
 
         {/* Small note for worries that the family should hear about today. */}
         {concerns.length > 0 && (
-          <p className="max-w-xl rounded-2xl bg-amber-200 px-4 py-1 text-center text-lg leading-[2.2] text-amber-900">
+          <p className="w-full max-w-xl rounded-2xl bg-amber-200 px-4 py-1 text-center text-[clamp(0.95rem,4vw,1.125rem)] leading-[2.2] text-amber-900">
             📝 {concerns.map((c) => c.rule.titleUr).join("، ")}: {childNameUr} کو بتا دیا جائے گا۔
           </p>
         )}
@@ -364,28 +374,33 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
         {/* What Khairiyat just said (hidden while the red panel needs the space). */}
         {lastKhairiyat && inCall && !urgent && (
           // dir="auto" lets the browser pick the direction: Roman Urdu left-to-right, Urdu script right-to-left.
-          <p dir="auto" className="max-h-40 max-w-xl overflow-y-auto text-center text-xl leading-[1.9]">
+          <p
+            dir="auto"
+            className="max-h-[26dvh] w-full max-w-xl overflow-y-auto px-1 text-center text-[clamp(1.05rem,4.6vw,1.3rem)] leading-[1.9] break-words"
+          >
             {lastKhairiyat.text}
           </p>
         )}
         {status === "done" && (
-          <p className="max-w-xl text-center text-2xl leading-[2.2]">
+          <p className="max-w-xl text-center text-[clamp(1.2rem,5.5vw,1.6rem)] leading-[2.2]">
             شکریہ {nicknameUr}! اپنا خیال رکھیے گا۔
           </p>
         )}
-        {errorText && <p className="text-center text-xl leading-[2.2] text-rose-700">{errorText}</p>}
+        {errorText && (
+          <p className="max-w-xl text-center text-[clamp(1rem,4.5vw,1.25rem)] leading-[2.2] text-rose-700">{errorText}</p>
+        )}
 
         {inCall && (
           <button
             onClick={end}
-            className="shrink-0 rounded-full bg-rose-600 px-10 py-2 text-2xl leading-[2] text-white shadow-lg active:scale-95"
+            className="shrink-0 rounded-full bg-rose-600 px-8 py-2 text-[clamp(1.2rem,5.8vw,1.6rem)] leading-[2] text-white shadow-lg active:scale-95"
           >
             بات ختم کریں
           </button>
         )}
       </section>
 
-      <footer className="mt-4 text-center text-sm leading-[2.2] text-stone-500">
+      <footer className="mt-3 w-full max-w-2xl text-center text-[clamp(0.8rem,3.4vw,0.9rem)] leading-[2.2] text-stone-500">
         خیریت ایک <bdi>AI</bdi> ساتھی ہے۔ ایمرجنسی میں <bdi>1122</bdi> پر کال کریں۔
       </footer>
     </main>
