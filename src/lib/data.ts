@@ -1,6 +1,9 @@
 // Data about the parents and their past check-ins.
-// For now this returns fixed demo parents. Once the Supabase tables exist,
-// these functions will read from the database instead.
+// Parents are fixed demo parents for the prototype (in production the family adds
+// them on the dashboard). Past check-ins come from the database and give
+// Khairiyat its memory of previous days.
+import "server-only";
+import { db } from "./db";
 
 export type Gender = "female" | "male";
 
@@ -79,6 +82,28 @@ export async function getParent(id: string): Promise<Parent | null> {
   return DEMO_PARENTS.find((p) => p.id === id) ?? null;
 }
 
-export async function getRecentCheckins(_parentId: string): Promise<PastCheckin[]> {
-  return [];
+// The last few check-in summaries, oldest first, for Khairiyat's memory.
+// If the database isn't set up or fails, Khairiyat simply talks without memory.
+export async function getRecentCheckins(parentId: string, limit = 5): Promise<PastCheckin[]> {
+  const supabase = db();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("checkins")
+    .select("created_at, summary")
+    .eq("parent_id", parentId)
+    .order("created_at", { ascending: false })
+    .limit(limit);
+  if (error || !data) {
+    console.error("getRecentCheckins: database error", error?.code ?? "");
+    return [];
+  }
+  return data.reverse().map((row) => ({
+    date: new Date(row.created_at).toLocaleDateString("en-PK", {
+      timeZone: "Asia/Karachi",
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    }),
+    summary: row.summary,
+  }));
 }

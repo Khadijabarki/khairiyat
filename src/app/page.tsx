@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-// Simple start page. The family dashboard link will be added in a later step.
+// Start page: links to the two demo talk screens and the family dashboard.
 export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-8 bg-amber-50 px-4 text-center">
@@ -25,6 +25,9 @@ export default function Home() {
           Abbu&apos;s screen (son&apos;s voice)
         </Link>
       </div>
+      <Link href="/family" className="text-stone-700 underline underline-offset-4 hover:text-stone-900">
+        Family dashboard →
+      </Link>
     </main>
   );
 }

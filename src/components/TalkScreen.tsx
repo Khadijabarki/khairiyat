@@ -82,12 +82,19 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
   }
 
   // Records an emergency or worry once per call (the AI and the keyword check
-  // may both notice the same thing; the family should get one alert, not two).
-  // The family alert itself is sent in the next step (/api/alert).
+  // may both notice the same thing; the family should get one alert, not two),
+  // and tells the server right away so the family is alerted during the call.
   function raiseAlert(rule: SafetyRule, reason: string, source: RaisedAlert["source"]) {
     if (alertsRef.current.some((a) => a.rule.id === rule.id)) return;
     alertsRef.current = [...alertsRef.current, { rule, reason, source }];
     setAlerts(alertsRef.current);
+
+    // Fire and forget: the call continues even if this request is slow or fails.
+    fetch("/api/alert", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ parentId, category: rule.id, reason, source }),
+    }).catch(() => {});
   }
 
   // The AI called its raise_alert tool. Show help, then tell the AI it worked.
@@ -251,7 +258,7 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
     setStatus("ending");
 
     // Send the conversation to the server to make the family summary.
-    // (The /api/checkin/finish route is built in the next step.)
+    // Only the summary and scores are saved on the server, never this transcript.
     try {
       await fetch("/api/checkin/finish", {
         method: "POST",
