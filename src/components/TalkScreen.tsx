@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import {
   FunctionResponseScheduling,
   GoogleGenAI,
@@ -12,6 +12,8 @@ import {
 import { AudioPlayer, MicStream } from "@/lib/live-audio";
 import { HELPLINES, detectByKeywords, getRule, type SafetyRule } from "@/lib/safety";
 import { devanagariToRoman } from "@/lib/transliterate";
+import IncomingCall from "./talk/IncomingCall";
+import PhoneSetup from "./talk/PhoneSetup";
 
 // An emergency or worry noticed during the call.
 // source "ai" = the AI called raise_alert; "keywords" = our backup keyword check caught it.
@@ -41,12 +43,21 @@ type Props = {
   nicknameUr: string; // shown on screen, e.g. "امی"
   childNameUr: string; // shown on screen, e.g. "علی"
   childPhone: string; // for the "call your son/daughter" button; empty = no button
+  vapidPublicKey: string; // lets this phone sign up for calls (Web Push); public, not a secret
+};
+
+// Incoming-call helpers: call ids are UUIDs; ?call=<id> is read from the page address.
+const isCallId = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/.test(v);
+const noSubscribe = () => () => {};
+const readCallParam = (): string | null => {
+  const id = new URLSearchParams(window.location.search).get("call");
+  return isCallId(id) ? id : null;
 };
 
 // Name of the channel that browser tabs use to tell each other a call has started.
 const CALL_CHANNEL = "khairiyat-call";
 
-export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameUr, childPhone }: Props) {
+export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameUr, childPhone, vapidPublicKey }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [errorText, setErrorText] = useState("");
@@ -55,6 +66,12 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
   // Whether this call's summary reached the family: shown on screen after the call.
   const [summaryState, setSummaryState] = useState<"none" | "sent" | "failed">("none");
   const summarySentRef = useRef(false);
+  // A call that is ringing on this screen right now. It comes either from the notification
+  // (the page opens with ?call=<id>) or, if the app is already open, from the background worker.
+  const callFromLink = useSyncExternalStore(noSubscribe, readCallParam, () => null);
+  const [callFromWorker, setCallFromWorker] = useState<string | null>(null);
+  const [handledCall, setHandledCall] = useState<string | null>(null);
+  const incomingCallId = callFromWorker ?? (callFromLink && callFromLink !== handledCall ? callFromLink : null);
 
   // Everything that belongs to the call that is running right now.
   const sessionRef = useRef<Session | null>(null);
@@ -294,6 +311,36 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
     setStatus("done");
   }
 
+  // If the app is already open when a call comes in, the background worker tells this page.
+  useEffect(() => {
+    const onMessage = (event: MessageEvent) => {
+      if (event.data?.type === "incoming-call" && isCallId(event.data.callId) && !activeRef.current) {
+        setCallFromWorker(event.data.callId);
+      }
+    };
+    navigator.serviceWorker?.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
+  }, []);
+
+  // Tells the server how the parent responded to the call, and clears ?call= from the address.
+  function respondToCall(action: "answer" | "decline") {
+    const callId = incomingCallId;
+    setCallFromWorker(null);
+    setHandledCall(callFromLink);
+    window.history.replaceState(null, "", window.location.pathname);
+    if (!callId) return;
+    fetch("/api/call/respond", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ talkToken, callId, action }),
+    }).catch(() => {});
+  }
+
+  function answerCall() {
+    respondToCall("answer");
+    start(); // the tap on "Answer" also lets the browser use the microphone and speaker
+  }
+
   // Runs once when the page opens:
   // - listens for "a call started in another tab" and ends this tab's call if so
   // - releases the microphone and connection when the page is closed or left
@@ -340,6 +387,10 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
       dir="rtl"
       className="font-urdu flex min-h-dvh flex-col items-center bg-amber-50 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-stone-800"
     >
+      {incomingCallId && !inCall && (
+        <IncomingCall childNameUr={childNameUr} onAnswer={answerCall} onLater={() => respondToCall("decline")} />
+      )}
+
       <header className="w-full max-w-2xl text-center">
         <h1 className="text-[clamp(2rem,9vw,2.75rem)] leading-[2] text-emerald-800">خیریت</h1>
         <p className="text-[clamp(1rem,4.2vw,1.2rem)] leading-[2.2] text-stone-600">
@@ -440,6 +491,8 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
             بات ختم کریں
           </button>
         )}
+        {/* One-time phone setup (install the app, allow calls); hidden during a call and once done. */}
+        {!inCall && status !== "ending" && <PhoneSetup talkToken={talkToken} vapidPublicKey={vapidPublicKey} />}
       </section>
 
       <footer className="mt-3 w-full max-w-2xl text-center text-[clamp(0.8rem,3.4vw,0.9rem)] leading-[2.2] text-stone-500">

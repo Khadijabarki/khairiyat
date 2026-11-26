@@ -4,7 +4,9 @@ import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import AutoRefresh from "@/components/family/AutoRefresh";
 import { Fact, RiskBadge, SampleTag, SignOutButton, yesNo } from "@/components/family/parts";
+import CallPanel from "@/components/family/CallPanel";
 import ShareLink from "@/components/family/ShareLink";
+import { deviceCount, latestCall } from "@/lib/calls";
 import TrendChart, { type TrendPoint } from "@/components/family/TrendChart";
 import { dayKey, formatDay, formatTime, getDashboardData } from "@/lib/dashboard";
 import { requireUser } from "@/lib/auth";
@@ -14,6 +16,9 @@ import { getRule } from "@/lib/safety";
 
 export const metadata: Metadata = { title: "Khairiyat · Family", robots: { index: false, follow: false } };
 export const instant = false;
+
+// Alerts raised by the system itself (not by something said in a call).
+const SYSTEM_ALERTS: Record<string, string> = { no_answer: "No answer to today's call" };
 
 // Chart colours: validated categorical slots 1-3 (blue, orange, aqua).
 const COLORS = { mood: "#2a78d6", sleep: "#eb6834", pain: "#1baf7a" };
@@ -42,7 +47,11 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
   if (!parent) notFound();
   const justAdded = (await searchParams).added === "1";
 
-  const { checkins, liveAlerts, databaseReady, nowMs } = await getDashboardData(parent.id);
+  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall] = await Promise.all([
+    getDashboardData(parent.id),
+    deviceCount(parent.id),
+    latestCall(parent.id),
+  ]);
   const latest = checkins[0];
 
   return (
@@ -97,7 +106,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
                 className={`rounded-2xl p-4 ${urgent ? "bg-rose-600 text-white" : "bg-amber-100 text-amber-950"}`}
               >
                 <p className="font-semibold">
-                  {urgent ? "⚠ Urgent" : "! Needs attention"}: {rule?.title ?? a.category}
+                  {urgent ? "⚠ Urgent" : "! Needs attention"}: {rule?.title ?? SYSTEM_ALERTS[a.category] ?? a.category}
                   <span className="font-normal opacity-80"> · {formatTime(a.created_at)}</span>
                 </p>
                 {a.reason && <p className="mt-0.5">{a.reason}</p>}
@@ -107,6 +116,8 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
           })}
         </section>
       )}
+
+      <CallPanel parent={parent} devices={devices} lastCall={lastCall} />
 
       {latest ? <TodayCard parent={parent} checkin={latest} /> : (
         <p className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-stone-600">

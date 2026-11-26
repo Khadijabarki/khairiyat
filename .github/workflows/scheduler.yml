@@ -1,0 +1,29 @@
+# Runs Khairiyat's call scheduler every 5 minutes: rings parents at their daily call time
+# and handles unanswered calls. It only calls our own API with a secret, so nothing else
+# (no code from this repo) runs here.
+#
+# Setup: add a repository secret CRON_SECRET with the same value as on the server
+# (GitHub -> Settings -> Secrets and variables -> Actions -> New repository secret).
+# Note: GitHub may delay scheduled runs by a few minutes when it is busy.
+name: Call scheduler
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch: # can also be started by hand from the Actions tab
+
+permissions: {} # this job needs no access to the repository
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ask the server to run the scheduler
+        env:
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+          SITE_URL: ${{ vars.SITE_URL || 'https://khairiyat.vercel.app' }}
+        run: |
+          curl --fail --silent --show-error --max-time 60 \
+            -X POST "$SITE_URL/api/cron/tick" \
+            -H "Authorization: Bearer $CRON_SECRET"

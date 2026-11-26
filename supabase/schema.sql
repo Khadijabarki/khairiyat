@@ -75,10 +75,40 @@ begin
   end if;
 end $$;
 
+-- ---------- Phones that can receive Khairiyat's calls (Web Push) ----------
+-- Created when the parent taps "allow calls" on their installed app.
+create table if not exists public.push_subscriptions (
+  id          uuid primary key default gen_random_uuid(),
+  parent_id   text not null references public.parents (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  endpoint    text not null unique check (endpoint ~ '^https://' and char_length(endpoint) <= 1000),
+  p256dh      text not null check (char_length(p256dh) <= 200),   -- public encryption key of the phone
+  auth        text not null check (char_length(auth) <= 100)       -- shared secret for encrypting messages
+);
+create index if not exists push_subscriptions_parent on public.push_subscriptions (parent_id);
+
+-- ---------- Calls: one row each time Khairiyat rings a parent ----------
+create table if not exists public.calls (
+  id           uuid primary key default gen_random_uuid(),
+  parent_id    text not null references public.parents (id) on delete cascade,
+  created_at   timestamptz not null default now(),
+  kind         text not null check (kind in ('scheduled', 'manual', 'retry')),
+  attempt      smallint not null default 1 check (attempt between 1 and 5),
+  status       text not null default 'ringing' check (status in ('ringing', 'answered', 'declined', 'missed', 'failed')),
+  answered_at  timestamptz,
+  devices      smallint not null default 0                        -- how many phones the call reached
+);
+create index if not exists calls_parent_time on public.calls (parent_id, created_at desc);
+create index if not exists calls_ringing on public.calls (status, created_at) where status = 'ringing';
+
 -- ---------- Lock everything down ----------
 alter table public.parents enable row level security;
 alter table public.checkins enable row level security;
 alter table public.live_alerts enable row level security;
+alter table public.push_subscriptions enable row level security;
+alter table public.calls enable row level security;
+grant select, insert, update, delete on public.push_subscriptions, public.calls to service_role;
+revoke all on public.push_subscriptions, public.calls from anon, authenticated;
 
 -- Only our server's role may use these tables. New Supabase projects grant nothing by
 -- default; we give the server exactly what it needs and the browser roles nothing.

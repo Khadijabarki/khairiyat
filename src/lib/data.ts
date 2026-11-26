@@ -130,6 +130,16 @@ export async function getParentByTalkToken(token: string): Promise<Parent | null
   return data ? toParent(data as ParentRow) : null;
 }
 
+// A parent by id, for server-only jobs (the call scheduler). Never call this with an id
+// that came from a browser: family pages use getFamilyParent, which checks ownership.
+export async function getParentById(parentId: string): Promise<Parent | null> {
+  const supabase = db();
+  if (!supabase) return null;
+  const { data, error } = await supabase.from("parents").select("*").eq("id", parentId).maybeSingle();
+  if (error) console.error("getParentById: database error", error.code);
+  return data ? toParent(data as ParentRow) : null;
+}
+
 // The last few check-in summaries, oldest first, for Khairiyat's memory.
 // If the database fails, Khairiyat simply talks without memory.
 export async function getRecentCheckins(parentId: string, limit = 5): Promise<PastCheckin[]> {

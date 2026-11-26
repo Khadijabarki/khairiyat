@@ -1,14 +1,27 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import TalkScreen from "@/components/TalkScreen";
+import { vapidPublicKey } from "@/lib/calls";
 import { getParentByTalkToken } from "@/lib/data";
+import { isValidTalkToken } from "@/lib/security";
 
-// noindex: a parent's personal talk page must never show up in search results.
-export const metadata: Metadata = { title: "Khairiyat", robots: { index: false, follow: false } };
+// Each parent's page links to their own app manifest, so "add to home screen" installs
+// an app that opens straight to this screen. noindex: never in search results.
+export async function generateMetadata({ params }: PageProps<"/talk/[token]">): Promise<Metadata> {
+  const { token } = await params;
+  return {
+    title: "خیریت",
+    robots: { index: false, follow: false },
+    manifest: isValidTalkToken(token) ? `/talk/${token}/manifest.webmanifest` : undefined,
+    icons: { icon: "/icons/icon-192.png", apple: "/icons/apple-touch-icon.png" },
+    appleWebApp: { capable: true, title: "خیریت", statusBarStyle: "default" },
+  };
+}
 
-// Opened directly from a link or QR code (not by navigating inside the app),
-// and looked up in the database on every visit.
+export const viewport: Viewport = { themeColor: "#047857" };
+
+// Opened directly from a link, QR code or home-screen icon, and looked up on every visit.
 export const instant = false;
 
 // The parent's screen: one big button to start the daily conversation.
@@ -33,6 +46,7 @@ async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">
       nicknameUr={parent.nicknameUr}
       childNameUr={parent.childNameUr}
       childPhone={parent.childPhone}
+      vapidPublicKey={vapidPublicKey()}
     />
   );
 }

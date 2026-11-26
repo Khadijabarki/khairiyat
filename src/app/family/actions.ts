@@ -6,8 +6,10 @@ import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth";
+import { deviceCount, ringParent } from "@/lib/calls";
 import { getFamilyParent } from "@/lib/data";
 import { db } from "@/lib/db";
+import { rateLimit } from "@/lib/security";
 
 import type { ParentFormValues } from "@/components/family/ParentForm";
 
@@ -162,6 +164,25 @@ export async function renewTalkLink(parentId: string): Promise<void> {
     .eq("family_id", user.id);
   if (error) console.error("renewTalkLink: database error", error.code);
   revalidatePath(`/family/${parent.id}`);
+}
+
+export type CallNowState = { message?: string; ok?: boolean };
+
+// "Call Ammi now": rings the parent's phone right away.
+export async function callNow(parentId: string, _prev: CallNowState): Promise<CallNowState> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId); // ownership check
+  if (!parent) return { message: "Not found." };
+  // At most one call a minute per parent, so a phone can't be flooded with calls.
+  if (!rateLimit(`callnow:${parent.id}`, 1, 60 * 1000)) return { message: "Please wait a minute before calling again." };
+  if ((await deviceCount(parent.id)) === 0) {
+    return { message: `${parent.nickname}'s phone isn't set up for calls yet. Open their link and tap "allow calls".` };
+  }
+  const call = await ringParent(parent, "manual");
+  revalidatePath(`/family/${parent.id}`);
+  if (!call) return { message: "Could not place the call. Please try again." };
+  if (call.status === "failed") return { message: `Couldn't reach ${parent.nickname}'s phone. Open their link again to refresh it.` };
+  return { ok: true, message: `Calling ${parent.nickname}… their phone is ringing.` };
 }
 
 // Removes a parent together with all their check-ins and alerts (database cascade).
