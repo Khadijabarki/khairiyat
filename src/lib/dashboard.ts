@@ -1,5 +1,6 @@
 // Reads what the family dashboard shows: recent check-ins and today's live alerts.
 import "server-only";
+import { connection } from "next/server";
 import { db, type Checkin, type LiveAlert } from "./db";
 
 export type DashboardData = {
@@ -10,6 +11,9 @@ export type DashboardData = {
 };
 
 export async function getDashboardData(parentId: string): Promise<DashboardData> {
+  // Health data must always be fresh: tell Next.js this runs on every request
+  // (never prerendered or cached), which also makes reading the current time safe.
+  await connection();
   const supabase = db();
   const nowMs = Date.now();
   if (!supabase) return { checkins: [], liveAlerts: [], databaseReady: false, nowMs };

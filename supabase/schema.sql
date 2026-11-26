@@ -41,6 +41,13 @@ create index if not exists live_alerts_parent_time on public.live_alerts (parent
 alter table public.checkins enable row level security;
 alter table public.live_alerts enable row level security;
 
+-- Only our server's role may use these tables. New Supabase projects grant nothing by
+-- default, so we give the server exactly what it needs and make sure the browser roles
+-- (anon = not signed in, authenticated = signed-in users) get nothing.
+grant select, insert on public.checkins, public.live_alerts to service_role;
+grant delete on public.checkins to service_role; -- for refreshing the sample rows
+revoke all on public.checkins, public.live_alerts from anon, authenticated;
+
 -- ---------- Sample data for the demo (last 7 days) ----------
 -- Clearly marked is_sample = true and shown as "sample" on the dashboard.
 delete from public.checkins where is_sample;
