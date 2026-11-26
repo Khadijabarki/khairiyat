@@ -1,10 +1,10 @@
 // Called by the talk screen the moment an emergency or worry is noticed DURING a call,
 // so the family hears about it right away instead of after the call ends.
-import { getParent } from "@/lib/data";
+import { getParentByTalkToken } from "@/lib/data";
 import { db } from "@/lib/db";
 import { notifyFamily } from "@/lib/notify";
 import { getRule } from "@/lib/safety";
-import { clientIp, isSameOrigin, isValidId, jsonError, rateLimit, readJson } from "@/lib/security";
+import { clientIp, isSameOrigin, isValidTalkToken, jsonError, rateLimit, readJson } from "@/lib/security";
 
 export async function POST(request: Request) {
   if (!isSameOrigin(request)) return jsonError("Forbidden", 403);
@@ -13,8 +13,9 @@ export async function POST(request: Request) {
   }
 
   const body = await readJson(request, 2048);
-  if (!body || !isValidId(body.parentId)) return jsonError("Invalid request", 400);
-  const parent = await getParent(body.parentId);
+  // The secret talk link proves this request comes from the parent's own talk screen.
+  if (!body || !isValidTalkToken(body.talkToken)) return jsonError("Invalid request", 400);
+  const parent = await getParentByTalkToken(body.talkToken);
   const rule = getRule(String(body.category ?? ""));
   if (!parent || !rule) return jsonError("Invalid request", 400);
 

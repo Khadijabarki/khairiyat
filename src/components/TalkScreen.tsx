@@ -36,7 +36,7 @@ const STATUS_TEXT: Record<Status, string> = {
 const MAX_CALL_MS = 6 * 60 * 1000; // end the call automatically after 6 minutes
 
 type Props = {
-  parentId: string; // which parent is talking, e.g. "ammi" or "abbu"
+  talkToken: string; // secret part of this parent's talk link; proves the requests come from their screen
   nickname: string; // used in the instruction to Gemini, e.g. "Ammi"
   nicknameUr: string; // shown on screen, e.g. "امی"
   childNameUr: string; // shown on screen, e.g. "علی"
@@ -46,7 +46,7 @@ type Props = {
 // Name of the channel that browser tabs use to tell each other a call has started.
 const CALL_CHANNEL = "khairiyat-call";
 
-export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr, childPhone }: Props) {
+export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameUr, childPhone }: Props) {
   const [status, setStatus] = useState<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [errorText, setErrorText] = useState("");
@@ -96,7 +96,7 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
     fetch("/api/alert", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ parentId, category: rule.id, reason, source }),
+      body: JSON.stringify({ talkToken, category: rule.id, reason, source }),
     }).catch(() => {});
   }
 
@@ -172,7 +172,7 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
         keepalive,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          parentId,
+          talkToken,
           turns: turnsRef.current,
           alerts: alertsRef.current.map((a) => ({ category: a.rule.id, reason: a.reason, source: a.source })),
         }),
@@ -214,7 +214,7 @@ export default function TalkScreen({ parentId, nickname, nicknameUr, childNameUr
       const res = await fetch("/api/live-token", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ parentId }),
+        body: JSON.stringify({ talkToken }),
       });
       if (!isCurrent()) return; // cancelled while waiting
       if (!res.ok) throw new Error(`Token request failed (${res.status})`);

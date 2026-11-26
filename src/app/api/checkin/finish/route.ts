@@ -1,11 +1,11 @@
 // Called by the talk screen when a conversation ends.
 // Makes the family summary, saves it (summary and scores only, never the transcript)
 // and sends the family a short message.
-import { getParent } from "@/lib/data";
+import { getParentByTalkToken } from "@/lib/data";
 import { db, type RiskLevel, type StoredAlert } from "@/lib/db";
 import { notifyFamily } from "@/lib/notify";
 import { getRule } from "@/lib/safety";
-import { clientIp, isSameOrigin, isValidId, jsonError, rateLimit, readJson } from "@/lib/security";
+import { clientIp, isSameOrigin, isValidTalkToken, jsonError, rateLimit, readJson } from "@/lib/security";
 import { summarizeCheckin, type Turn } from "@/lib/summary";
 
 const MAX_BODY_BYTES = 64 * 1024; // a 6-minute call is far below this
@@ -52,8 +52,9 @@ export async function POST(request: Request) {
   }
 
   const body = await readJson(request, MAX_BODY_BYTES);
-  if (!body || !isValidId(body.parentId)) return jsonError("Invalid request", 400);
-  const parent = await getParent(body.parentId);
+  // The secret talk link proves this request comes from the parent's own talk screen.
+  if (!body || !isValidTalkToken(body.talkToken)) return jsonError("Invalid request", 400);
+  const parent = await getParentByTalkToken(body.talkToken);
   if (!parent) return jsonError("Not found", 404);
   const turns = readTurns(body.turns);
   if (!turns) return jsonError("Invalid request", 400);

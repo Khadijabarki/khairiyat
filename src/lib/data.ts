@@ -1,89 +1,137 @@
-// Data about the parents and their past check-ins.
-// Parents are fixed demo parents for the prototype (in production the family adds
-// them on the dashboard). Past check-ins come from the database and give
-// Khairiyat its memory of previous days.
+// Parents and their past check-ins, read from the database.
+//
+// Two ways to reach a parent, and both are checked here:
+// - a family member: only parents whose family_id is their own account
+// - the parent's own phone: only through the secret talk link (talk_token)
+// Past check-ins give Khairiyat its memory of previous days.
 import "server-only";
 import { db } from "./db";
 
 export type Gender = "female" | "male";
 
 // Which language Khairiyat speaks:
-// "auto" = reply in whatever the parent speaks (Urdu or Punjabi), "urdu" or "punjabi" = always that one.
-export type Language = "auto" | "urdu" | "punjabi";
+// "urdu" = understands Punjabi but always replies in Urdu (recommended; the model's spoken
+// Punjabi currently sounds Indian), "auto" = replies in the parent's language, "punjabi" = always Punjabi.
+export type Language = "urdu" | "auto" | "punjabi";
+
+export type Medicine = { name: string; when: string }; // e.g. { name: "BP ki goli", when: "subah nashte ke baad" }
 
 export type Parent = {
-  id: string; // used in the link, e.g. /talk/ammi
+  id: string;
+  familyId: string;
   name: string; // full name, e.g. "Zubaida Begum"
   gender: Gender; // decides Urdu grammar: "aap leti hain" vs "aap lete hain"
   nickname: string; // what the family calls them, e.g. "Ammi" or "Abbu"
-  childName: string; // the son or daughter who gets the summaries, e.g. "Ali"
-  // The same names in Urdu script, for the talk screen. Mixing English letters
-  // into right-to-left Urdu text makes the browser put punctuation in the wrong place.
-  nicknameUr: string; // e.g. "امی"
+  nicknameUr: string; // the same in Urdu script, for the talk screen, e.g. "امی"
+  childName: string; // the son/daughter who gets the summaries, e.g. "Ali"
   childNameUr: string; // e.g. "علی"
-  // Phone number for the "call your son/daughter" emergency button (empty = button hidden).
-  childPhone: string;
+  childPhone: string; // for the "call your son/daughter" emergency button (empty = hidden)
   language: Language;
-  medicines: string[];
+  medicines: Medicine[];
   topics: string[]; // things they enjoy talking about
-  // How Khairiyat talks to this parent: as a daughter (female voice) or a son (male voice).
-  companion: { gender: Gender; voice: string };
+  companion: { gender: Gender; voice: string }; // Khairiyat talks as a daughter or a son
+  checkinTime: string; // daily call time, "HH:MM" in Pakistan time
+  talkToken: string; // secret part of the parent's talk link
+  consentGiven: boolean;
+  isDemo: boolean;
 };
 
 export type PastCheckin = {
-  date: string; // e.g. "2026-11-23"
-  summary: string; // short summary of that day's conversation
+  date: string; // e.g. "Wednesday, 25 November"
+  summary: string;
 };
 
-// Gemini voices. Female voices sound like a daughter, male voices like a son.
-// Change these to try other voices from AI Studio's voice list.
-export const VOICES = {
-  female: process.env.GEMINI_VOICE_FEMALE || "Sulafat", // warm
-  male: process.env.GEMINI_VOICE_MALE || "Achird", // friendly
+// Gemini voices that were tested with Urdu: a daughter's (female) and a son's (male) voice.
+export const VOICES: Record<Gender, string> = {
+  female: process.env.GEMINI_VOICE_FEMALE?.trim() || "Sulafat",
+  male: process.env.GEMINI_VOICE_MALE?.trim() || "Achird",
 };
 
-const DEMO_PARENTS: Parent[] = [
-  {
-    id: "ammi",
-    name: "Zubaida Begum",
-    gender: "female",
-    nickname: "Ammi",
-    childName: "Ali",
-    nicknameUr: "امی",
-    childNameUr: "علی",
-    // For the demo, put your own number in .env.local (DEMO_CHILD_PHONE=+923001234567).
-    childPhone: process.env.DEMO_CHILD_PHONE ?? "",
-    language: "urdu",
-    medicines: ["BP ki goli (subah nashte ke baad)", "Sugar ki goli (raat ko)"],
-    topics: ["apne pote ki baatein", "khana pakana", "purane gaane"],
-    companion: { gender: "female", voice: VOICES.female },
-  },
-  {
-    id: "abbu",
-    name: "Muhammad Aslam",
-    gender: "male",
-    nickname: "Abbu",
-    childName: "Sana",
-    nicknameUr: "ابو",
-    childNameUr: "ثنا",
-    childPhone: process.env.DEMO_CHILD_PHONE ?? "",
-    language: "urdu",
-    medicines: ["Dil ki goli (subah)", "Cholesterol ki goli (raat ko khane ke baad)"],
-    topics: ["cricket", "khabrein", "subah ki sair", "purane dost"],
-    companion: { gender: "male", voice: VOICES.male },
-  },
-];
+// Database row -> Parent. Unexpected values fall back to safe defaults.
+type ParentRow = {
+  id: string;
+  family_id: string;
+  name: string;
+  nickname: string;
+  nickname_ur: string;
+  gender: string;
+  language: string;
+  child_name: string;
+  child_name_ur: string;
+  child_phone: string;
+  companion_gender: string;
+  medicines: unknown;
+  topics: string[] | null;
+  checkin_time: string;
+  talk_token: string;
+  consent_given: boolean;
+  is_demo: boolean;
+};
 
-export async function getParents(): Promise<Parent[]> {
-  return DEMO_PARENTS;
+function toParent(row: ParentRow): Parent {
+  const companionGender: Gender = row.companion_gender === "male" ? "male" : "female";
+  const medicines = Array.isArray(row.medicines)
+    ? (row.medicines as Medicine[]).filter((m) => typeof m?.name === "string").map((m) => ({ name: m.name, when: String(m.when ?? "") }))
+    : [];
+  return {
+    id: row.id,
+    familyId: row.family_id,
+    name: row.name,
+    gender: row.gender === "male" ? "male" : "female",
+    nickname: row.nickname,
+    nicknameUr: row.nickname_ur || row.nickname,
+    childName: row.child_name,
+    childNameUr: row.child_name_ur || row.child_name,
+    childPhone: row.child_phone,
+    language: row.language === "auto" || row.language === "punjabi" ? row.language : "urdu",
+    medicines,
+    topics: row.topics ?? [],
+    companion: { gender: companionGender, voice: VOICES[companionGender] },
+    checkinTime: row.checkin_time.slice(0, 5),
+    talkToken: row.talk_token,
+    consentGiven: row.consent_given,
+    isDemo: row.is_demo,
+  };
 }
 
-export async function getParent(id: string): Promise<Parent | null> {
-  return DEMO_PARENTS.find((p) => p.id === id) ?? null;
+// All parents of one family account, oldest first.
+export async function getFamilyParents(familyId: string): Promise<Parent[]> {
+  const supabase = db();
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("parents")
+    .select("*")
+    .eq("family_id", familyId)
+    .order("created_at", { ascending: true });
+  if (error) console.error("getFamilyParents: database error", error.code);
+  return ((data as ParentRow[]) ?? []).map(toParent);
+}
+
+// One parent, ONLY if it belongs to this family account (otherwise null).
+export async function getFamilyParent(familyId: string, parentId: string): Promise<Parent | null> {
+  const supabase = db();
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("parents")
+    .select("*")
+    .eq("id", parentId)
+    .eq("family_id", familyId)
+    .maybeSingle();
+  if (error) console.error("getFamilyParent: database error", error.code);
+  return data ? toParent(data as ParentRow) : null;
+}
+
+// The parent whose secret talk link this is (used by the talk screen and its APIs).
+export async function getParentByTalkToken(token: string): Promise<Parent | null> {
+  const supabase = db();
+  if (!supabase || !/^[A-Za-z0-9_-]{8,64}$/.test(token)) return null;
+  const { data, error } = await supabase.from("parents").select("*").eq("talk_token", token).maybeSingle();
+  if (error) console.error("getParentByTalkToken: database error", error.code);
+  return data ? toParent(data as ParentRow) : null;
 }
 
 // The last few check-in summaries, oldest first, for Khairiyat's memory.
-// If the database isn't set up or fails, Khairiyat simply talks without memory.
+// If the database fails, Khairiyat simply talks without memory.
 export async function getRecentCheckins(parentId: string, limit = 5): Promise<PastCheckin[]> {
   const supabase = db();
   if (!supabase) return [];

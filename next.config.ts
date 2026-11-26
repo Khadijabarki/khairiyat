@@ -20,6 +20,14 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   // Don't advertise which framework the server runs.
   poweredByHeader: false,
+  // Old demo links from the first version keep working.
+  async redirects() {
+    return [
+      { source: "/ammi", destination: "/talk/demo-ammi", permanent: false },
+      { source: "/talk/ammi", destination: "/talk/demo-ammi", permanent: false },
+      { source: "/talk/abbu", destination: "/talk/demo-abbu", permanent: false },
+    ];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },

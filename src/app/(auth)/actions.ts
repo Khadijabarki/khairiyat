@@ -1,0 +1,72 @@
+"use server";
+// Sign up, sign in, sign out and "open the demo" for family accounts.
+// Server Actions: Next.js only accepts them from our own pages (built-in origin check).
+
+import { headers } from "next/headers";
+import { redirect } from "next/navigation";
+import { authClient, demoEmail } from "@/lib/auth";
+import { ipFromHeaders, rateLimit } from "@/lib/security";
+
+// email is sent back after an error so the form can show it again (never the password).
+export type AuthState = { error?: string; info?: string; email?: string };
+
+const EMAIL_PATTERN = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,24}$/;
+
+function readCredentials(form: FormData) {
+  const email = String(form.get("email") ?? "").trim().toLowerCase();
+  const password = String(form.get("password") ?? "");
+  return { email, password };
+}
+
+// Slows down password guessing and mass sign-ups from one address.
+async function allowAttempt(kind: string): Promise<boolean> {
+  return rateLimit(`${kind}:${ipFromHeaders(await headers())}`, 10, 10 * 60 * 1000);
+}
+
+export async function signUp(_prev: AuthState, form: FormData): Promise<AuthState> {
+  if (!(await allowAttempt("signup"))) return { error: "Too many attempts. Please wait a few minutes." };
+  const { email, password } = readCredentials(form);
+  if (!EMAIL_PATTERN.test(email)) return { error: "Please enter a valid email address.", email };
+  if (password.length < 8 || password.length > 72) return { error: "Password must be 8 to 72 characters.", email };
+
+  const supabase = await authClient();
+  const { data, error } = await supabase.auth.signUp({ email, password });
+  if (error) {
+    // Don't reveal whether an email is already registered.
+    console.error("signUp: failed", error.status ?? "");
+    return { error: "Could not create the account. Try another email or sign in.", email };
+  }
+  // If email confirmation is switched on in Supabase, there is no session yet.
+  if (!data.session) return { info: "Account created. Please confirm your email, then sign in." };
+  redirect("/family");
+}
+
+export async function signIn(_prev: AuthState, form: FormData): Promise<AuthState> {
+  if (!(await allowAttempt("signin"))) return { error: "Too many attempts. Please wait a few minutes." };
+  const { email, password } = readCredentials(form);
+  if (!email || !password) return { error: "Please enter your email and password.", email };
+
+  const supabase = await authClient();
+  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  // One message for every failure, so attackers can't tell which emails exist.
+  if (error) return { error: "Email or password is not correct.", email };
+  redirect("/family");
+}
+
+// One click for judges: signs in to the shared demo account (sample parents and data).
+export async function openDemo(): Promise<AuthState> {
+  if (!(await allowAttempt("demo"))) return { error: "Too many attempts. Please wait a few minutes." };
+  const password = process.env.DEMO_PASSWORD?.trim();
+  if (!password) return { error: "The demo is not set up on this server." };
+
+  const supabase = await authClient();
+  const { error } = await supabase.auth.signInWithPassword({ email: demoEmail(), password });
+  if (error) return { error: "The demo is not available right now." };
+  redirect("/family");
+}
+
+export async function signOut(): Promise<void> {
+  const supabase = await authClient();
+  await supabase.auth.signOut();
+  redirect("/login");
+}

@@ -3,41 +3,44 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import AutoRefresh from "@/components/family/AutoRefresh";
-import { Fact, RiskBadge, SampleTag, SignInForm, SignOutButton, yesNo } from "@/components/family/parts";
+import { Fact, RiskBadge, SampleTag, SignOutButton, yesNo } from "@/components/family/parts";
+import ShareLink from "@/components/family/ShareLink";
 import TrendChart, { type TrendPoint } from "@/components/family/TrendChart";
 import { dayKey, formatDay, formatTime, getDashboardData } from "@/lib/dashboard";
-import { getParent, getParents, type Parent } from "@/lib/data";
+import { requireUser } from "@/lib/auth";
+import { getFamilyParent, type Parent } from "@/lib/data";
 import type { Checkin } from "@/lib/db";
-import { isFamilySignedIn } from "@/lib/family-auth";
 import { getRule } from "@/lib/safety";
 
 export const metadata: Metadata = { title: "Khairiyat · Family", robots: { index: false, follow: false } };
 export const instant = false;
 
-export async function generateStaticParams() {
-  return (await getParents()).map((p) => ({ parentId: p.id }));
-}
-
 // Chart colours: validated categorical slots 1-3 (blue, orange, aqua).
 const COLORS = { mood: "#2a78d6", sleep: "#eb6834", pain: "#1baf7a" };
 
-export default function ParentDashboardPage({ params }: PageProps<"/family/[parentId]">) {
+export default function ParentDashboardPage({ params, searchParams }: PageProps<"/family/[parentId]">) {
   return (
     <main className="min-h-dvh bg-stone-50 px-4 py-6 text-stone-800">
       <div className="mx-auto max-w-3xl">
         <Suspense fallback={<p className="text-stone-500">Loading…</p>}>
-          <ParentDashboard params={params} />
+          <ParentDashboard params={params} searchParams={searchParams} />
         </Suspense>
       </div>
     </main>
   );
 }
 
-async function ParentDashboard({ params }: { params: PageProps<"/family/[parentId]">["params"] }) {
+type DashboardProps = {
+  params: PageProps<"/family/[parentId]">["params"];
+  searchParams: PageProps<"/family/[parentId]">["searchParams"];
+};
+
+async function ParentDashboard({ params, searchParams }: DashboardProps) {
   const { parentId } = await params;
-  const parent = await getParent(parentId);
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId); // only this family's parents
   if (!parent) notFound();
-  if (!(await isFamilySignedIn())) return <SignInForm />;
+  const justAdded = (await searchParams).added === "1";
 
   const { checkins, liveAlerts, databaseReady, nowMs } = await getDashboardData(parent.id);
   const latest = checkins[0];
@@ -49,15 +52,18 @@ async function ParentDashboard({ params }: { params: PageProps<"/family/[parentI
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href="/family" className="text-sm text-stone-500 hover:underline">
-            ← All family
+            ← Your family
           </Link>
           <h1 className="text-2xl font-semibold text-stone-900">
             {parent.nickname} <span className="font-normal text-stone-500">· {parent.name}</span>
           </h1>
         </div>
         <div className="flex items-center gap-4">
+          <Link href={`/family/${parent.id}/edit`} className="text-sm font-medium text-stone-700 hover:underline">
+            Edit
+          </Link>
           <Link
-            href={`/talk/${parent.id}`}
+            href={`/talk/${parent.talkToken}`}
             className="rounded-xl bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800"
           >
             Open {parent.nickname}&apos;s talk screen
@@ -65,6 +71,12 @@ async function ParentDashboard({ params }: { params: PageProps<"/family/[parentI
           <SignOutButton />
         </div>
       </header>
+
+      {justAdded && (
+        <p role="status" className="mt-4 rounded-xl bg-emerald-100 p-3 text-emerald-900">
+          {parent.nickname} has been added. Now open the link below on {parent.nickname}&apos;s phone.
+        </p>
+      )}
 
       {!databaseReady && (
         <p className="mt-4 rounded-xl bg-amber-100 p-3 text-amber-900">
@@ -102,9 +114,13 @@ async function ParentDashboard({ params }: { params: PageProps<"/family/[parentI
         </p>
       )}
 
+      {/* A new parent needs the phone set-up first; after that it moves to the bottom. */}
+      {checkins.length === 0 && <ShareLink parent={parent} />}
+
       {checkins.length > 0 && <PhonePreview parent={parent} checkins={checkins} />}
       {checkins.length > 0 && <Trends checkins={checkins} nowMs={nowMs} />}
       {checkins.length > 0 && <History checkins={checkins} />}
+      {checkins.length > 0 && <ShareLink parent={parent} />}
 
       <p className="mt-8 text-center text-xs text-stone-500">
         Khairiyat saves only a short summary and simple scores of each call, never the full conversation.

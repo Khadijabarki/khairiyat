@@ -26,8 +26,13 @@ export function isSameOrigin(request: Request): boolean {
 
 // The visitor's IP address. Vercel puts the real address first in x-forwarded-for.
 export function clientIp(request: Request): string {
-  const forwarded = request.headers.get("x-forwarded-for");
-  return forwarded?.split(",")[0].trim() || request.headers.get("x-real-ip") || "unknown";
+  return ipFromHeaders(request.headers);
+}
+
+// Same, from a headers object (Server Actions get headers, not a Request).
+export function ipFromHeaders(headers: Headers): string {
+  const forwarded = headers.get("x-forwarded-for");
+  return forwarded?.split(",")[0].trim() || headers.get("x-real-ip") || "unknown";
 }
 
 // Remembers recent request times per key (for example per IP address).
@@ -61,6 +66,11 @@ export function rateLimit(key: string, limit: number, windowMs: number): boolean
 // Parent ids are short and made of lowercase letters, numbers, "-" and "_".
 export function isValidId(value: unknown): value is string {
   return typeof value === "string" && /^[a-z0-9_-]{1,64}$/.test(value);
+}
+
+// Talk tokens (the secret part of a parent's talk link) are URL-safe letters and numbers.
+export function isValidTalkToken(value: unknown): value is string {
+  return typeof value === "string" && /^[A-Za-z0-9_-]{8,64}$/.test(value);
 }
 
 // Reads a JSON body, refusing anything larger than maxBytes.

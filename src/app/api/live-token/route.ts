@@ -6,10 +6,10 @@ import {
   type LiveConnectConfig,
 } from "@google/genai";
 import { LIVE_MODEL } from "@/lib/config";
-import { getParent, getRecentCheckins } from "@/lib/data";
+import { getParentByTalkToken, getRecentCheckins } from "@/lib/data";
 import { buildSystemPrompt } from "@/lib/prompt";
 import { SAFETY_RULES } from "@/lib/safety";
-import { clientIp, isSameOrigin, isValidId, jsonError, rateLimit, readJson, safeErrorInfo } from "@/lib/security";
+import { clientIp, isSameOrigin, isValidTalkToken, jsonError, rateLimit, readJson, safeErrorInfo } from "@/lib/security";
 
 // The tool the AI calls by itself when it hears an emergency or a worry.
 // NON_BLOCKING: the conversation keeps going while the app shows help and alerts the family.
@@ -58,8 +58,9 @@ export async function POST(request: Request) {
 
   // 3. Check the input: a small JSON body with a valid parent id.
   const body = await readJson(request, 1024);
-  if (!body || !isValidId(body.parentId)) return jsonError("Invalid request", 400);
-  const parent = await getParent(body.parentId);
+  // The secret talk link proves this request comes from the parent's own talk screen.
+  if (!body || !isValidTalkToken(body.talkToken)) return jsonError("Invalid request", 400);
+  const parent = await getParentByTalkToken(body.talkToken);
   if (!parent) return jsonError("Not found", 404);
 
   const apiKey = process.env.GEMINI_API_KEY;

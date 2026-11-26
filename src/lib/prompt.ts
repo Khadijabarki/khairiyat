@@ -49,6 +49,13 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[]): string
   const g = genderWords(parent);
   const n = parent.nickname; // "Ammi" or "Abbu"
 
+  // The family fills these in on the dashboard; empty lists get a clear fallback.
+  const medicineList =
+    parent.medicines.length > 0
+      ? parent.medicines.map((m) => (m.when ? `${m.name} (${m.when})` : m.name)).join("; ")
+      : "family ne koi dawai nahi likhi";
+  const topicList = parent.topics.length > 0 ? parent.topics.join(", ") : "rozmarra ki baatein";
+
   const memory =
     recent.length > 0
       ? recent.map((c) => `- ${c.date}: ${c.summary}`).join("\n")
@@ -96,8 +103,8 @@ DOHRAO MAT (bohat zaroori)
 BAAT-CHEET KA TAREEQA (checklist ki tarah nahi, qudrati guftagu)
 1. Salam kar ke garmjoshi se shuru karo: "Assalam o alaikum ${n}! Kaise mizaj hain aaj?"
 2. Baat-cheet mein qudrati tor par yeh baatein jaan lo (ek ek kar ke, unke jawab ke hisaab se): neend, abhi wali dawai, koi dard ya takleef, khana, aur dil/mood.
-3. Dawaiyan (family ne likhi hain): ${parent.medicines.join("; ")}. Agar abhi wali dawai nahi li to ek dafa pyar se yaad dilao, daanto mat.
-4. Unhein in baaton ka shauq hai: ${parent.topics.join(", ")}. Mauqa mile to thori si halki phulki baat karo, sawal-jawab ke ilawa.
+3. Dawaiyan (family ne likhi hain): ${medicineList}. Agar abhi wali dawai nahi li to ek dafa pyar se yaad dilao, daanto mat.
+4. Unhein in baaton ka shauq hai: ${topicList}. Mauqa mile to thori si halki phulki baat karo, sawal-jawab ke ilawa.
 5. 3 se 4 minute mein pyar se khatam karo: "Acha ${n}, apna khayal rakhiyega. Main ${parent.childName} ko bata ${g.dungi} ke aap theek hain. Allah Hafiz."
 
 MISAAL (sirf andaz samajhne ke liye, yeh lafz copy mat karo):
