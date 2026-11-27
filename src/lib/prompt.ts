@@ -1,5 +1,6 @@
 import type { Parent, PastCheckin } from "./data";
 import { safetyPrompt } from "./safety";
+import { callSlots, currentSlot, pakistanToday } from "./time";
 
 // Urdu words that change with gender.
 // Khairiyat talks as a daughter (female) or a son (male), and the parent is a mother or father.
@@ -45,7 +46,7 @@ function languageRule(parent: Parent): string {
 
 // Builds the instructions that tell Gemini how to talk to the parent.
 // Recent summaries are included so Khairiyat remembers previous days (memory).
-export function buildSystemPrompt(parent: Parent, recent: PastCheckin[]): string {
+export function buildSystemPrompt(parent: Parent, recent: PastCheckin[], time = new Date()): string {
   const g = genderWords(parent);
   const n = parent.nickname; // "Ammi" or "Abbu"
 
@@ -58,7 +59,12 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[]): string
   // The family fills these in on the dashboard; empty lists get a clear fallback.
   const medicineList =
     parent.medicines.length > 0
-      ? parent.medicines.map((m) => (m.when ? `${m.name} (${m.when})` : m.name)).join("; ")
+      ? parent.medicines
+          .map((m) => {
+            const details = [m.time, m.when].filter(Boolean).join(", ");
+            return details ? `${m.name} (${details})` : m.name;
+          })
+          .join("; ")
       : "family ne koi dawai nahi likhi";
   const topicList = parent.topics.length > 0 ? parent.topics.join(", ") : "rozmarra ki baatein";
 
@@ -67,9 +73,21 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[]): string
       ? recent.map((c) => `- ${c.date}: ${c.summary}`).join("\n")
       : "- Abhi tak koi pichli baat-cheet nahi hui. Yeh pehli baat-cheet hai.";
 
+  // If the family set medicine times, say exactly which medicines belong to this conversation.
+  const slot = currentSlot(callSlots(parent.checkinTime, parent.medicines), pakistanToday(time).minutesNow);
+  let medicinesNow = "";
+  if (parent.medicines.some((m) => m.time)) {
+    medicinesNow = slot?.medicines.length
+      ? `\n   ABHI IN DAWAIYON KA WAQT HAI: ${slot.medicines.join(", ")}. Zaroor poocho ke le li ya nahi.`
+      : "\n   Abhi kisi tay waqt wali dawai ka waqt nahi hai, un ka sawal zabardasti mat karo.";
+    if (slot?.medicines.length && !slot.daily) {
+      medicinesNow += "\n   Yeh dawai wali chhoti call hai: salam, dawai ka poocho, thora haal poocho, aur 1-2 minute mein khatam karo.";
+    }
+  }
+
   // Current date and time in Pakistan, so Khairiyat asks about the right medicine
   // (morning vs night) and greets correctly.
-  const now = new Date().toLocaleString("en-PK", {
+  const now = time.toLocaleString("en-PK", {
     timeZone: "Asia/Karachi",
     weekday: "long",
     day: "numeric",
@@ -109,7 +127,7 @@ DOHRAO MAT (bohat zaroori)
 BAAT-CHEET KA TAREEQA (checklist ki tarah nahi, qudrati guftagu)
 1. Salam kar ke garmjoshi se shuru karo: "Assalam o alaikum ${n}! Kaise mizaj hain aaj?"
 2. Baat-cheet mein qudrati tor par yeh baatein jaan lo (ek ek kar ke, unke jawab ke hisaab se): neend, abhi wali dawai, koi dard ya takleef, khana, aur dil/mood.
-3. Dawaiyan (family ne likhi hain): ${medicineList}. Agar abhi wali dawai nahi li to ek dafa pyar se yaad dilao, daanto mat.
+3. Dawaiyan (family ne likhi hain): ${medicineList}. Agar abhi wali dawai nahi li to ek dafa pyar se yaad dilao, daanto mat.${medicinesNow}
 4. Unhein in baaton ka shauq hai: ${topicList}. Mauqa mile to thori si halki phulki baat karo, sawal-jawab ke ilawa.
 5. 3 se 4 minute mein pyar se khatam karo: "Acha ${n}, apna khayal rakhiyega. Main ${parent.childName} ko bata ${g.dungi} ke aap theek hain. Allah Hafiz."${messageHint}
 

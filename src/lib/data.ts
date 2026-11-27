@@ -6,6 +6,7 @@
 // Past check-ins give Khairiyat its memory of previous days.
 import "server-only";
 import { db } from "./db";
+import { readMedicines, type Medicine } from "./medicines";
 
 export type Gender = "female" | "male";
 
@@ -14,7 +15,7 @@ export type Gender = "female" | "male";
 // Punjabi currently sounds Indian), "auto" = replies in the parent's language, "punjabi" = always Punjabi.
 export type Language = "urdu" | "auto" | "punjabi";
 
-export type Medicine = { name: string; when: string }; // e.g. { name: "BP ki goli", when: "subah nashte ke baad" }
+export type { Medicine };
 
 export type Parent = {
   id: string;
@@ -70,9 +71,7 @@ type ParentRow = {
 
 function toParent(row: ParentRow): Parent {
   const companionGender: Gender = row.companion_gender === "male" ? "male" : "female";
-  const medicines = Array.isArray(row.medicines)
-    ? (row.medicines as Medicine[]).filter((m) => typeof m?.name === "string").map((m) => ({ name: m.name, when: String(m.when ?? "") }))
-    : [];
+  const medicines = readMedicines(row.medicines);
   return {
     id: row.id,
     familyId: row.family_id,

@@ -4,6 +4,7 @@ import { callNow } from "@/app/family/actions";
 import { formatDay, formatTime } from "@/lib/dashboard";
 import type { Call } from "@/lib/calls";
 import type { Parent } from "@/lib/data";
+import { callSlots } from "@/lib/time";
 import CallNowButton from "./CallNowButton";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
@@ -31,11 +32,17 @@ export default async function CallPanel({ parent, devices, lastCall }: { parent:
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1 text-sm text-stone-700">
           <h2 className="text-base font-semibold text-stone-900">{t("Daily call", "روز کی کال")}</h2>
-          <p>
-            {t(`Khairiyat calls ${nickname} every day at`, `خیریت ${nickname} کو روز اس وقت کال کرتی ہے:`)}{" "}
-            <bdi dir="ltr" className="font-medium">{friendlyTime(parent.checkinTime)}</bdi>{" "}
-            {t("(Pakistan time). No answer → it tries again after 15 minutes, then tells you.", "(پاکستان کا وقت)۔ جواب نہ ملے تو 15 منٹ بعد دوبارہ کال، پھر آپ کو اطلاع۔")}
-          </p>
+          <p>{t(`Khairiyat calls ${nickname} every day at (Pakistan time):`, `خیریت ${nickname} کو روز ان اوقات پر کال کرتی ہے (پاکستان کا وقت):`)}</p>
+          <ul className="space-y-0.5">
+            {callSlots(parent.checkinTime, parent.medicines).map((slot) => (
+              <li key={slot.time}>
+                <bdi dir="ltr" className="font-medium">{friendlyTime(slot.time)}</bdi>
+                {" · "}
+                {[slot.daily ? t("daily check-in", "روز کا حال چال") : "", slot.medicines.join(", ")].filter(Boolean).join(" + ")}
+              </li>
+            ))}
+          </ul>
+          <p>{t("No answer → it tries again after 15 minutes, then tells you.", "جواب نہ ملے تو 15 منٹ بعد دوبارہ کال، پھر آپ کو اطلاع۔")}</p>
           <p>
             {t(`${nickname}'s phone:`, `${nickname} کا فون:`)}{" "}
             {devices > 0 ? (

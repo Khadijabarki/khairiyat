@@ -16,7 +16,7 @@ export type ParentFormValues = {
   companionGender: "female" | "male";
   language: "urdu" | "auto" | "punjabi";
   checkinTime: string;
-  medicines: { name: string; when: string }[];
+  medicines: { name: string; when: string; time?: string }[];
   topics: string[];
   consentGiven: boolean;
 };
@@ -114,12 +114,13 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
 
       <fieldset className="rounded-2xl border border-stone-200 bg-white p-5">
         <legend className="px-1 font-semibold text-stone-900">{t("Medicines", "دوائیاں")}</legend>
-        <p className={hint}>{t("Khairiyat gently reminds them at the right time. It never suggests new medicines.", "خیریت صحیح وقت پر پیار سے یاد دلاتی ہے۔ نئی دوائی کبھی تجویز نہیں کرتی۔")}</p>
+        <p className={hint}>{t("Add a time next to a medicine and Khairiyat also calls then to ask about it (times less than an hour apart become one call). It never suggests new medicines.", "دوائی کے ساتھ وقت لکھیں تو خیریت اس وقت بھی کال کر کے اس کا پوچھے گی (ایک گھنٹے سے کم فرق والے وقت ایک ہی کال بنتے ہیں)۔ نئی دوائی کبھی تجویز نہیں کرتی۔")}</p>
         <div className="mt-3 space-y-2">
           {medicineRows.map((med, i) => (
-            <div key={i} className="grid grid-cols-2 gap-2">
+            <div key={i} className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_9rem]">
               <input name={`med_name_${i}`} maxLength={60} defaultValue={med?.name ?? ""} placeholder={i === 0 ? "BP ki goli" : t("Medicine", "دوائی")} aria-label={`${t("Medicine", "دوائی")} ${i + 1}`} className={input} />
               <input name={`med_when_${i}`} maxLength={60} defaultValue={med?.when ?? ""} placeholder={i === 0 ? "subah nashte ke baad" : t("When", "کب")} aria-label={`${t("When to take medicine", "دوائی کا وقت")} ${i + 1}`} className={input} />
+              <input name={`med_time_${i}`} type="time" defaultValue={med?.time ?? ""} aria-label={`${t("Call time for medicine", "دوائی کی کال کا وقت")} ${i + 1}`} title={t("Call time", "کال کا وقت")} className={`${input} col-span-2 sm:col-span-1`} />
             </div>
           ))}
         </div>

@@ -5,7 +5,7 @@
 //    parent allowed. The phone vibrates and shows "Khairiyat is calling" with Answer / Later.
 // 2. Answer opens the talk screen and the conversation starts. Later = "declined".
 // 3. The scheduler (src/app/api/cron/tick) runs every few minutes:
-//    - rings each parent at their daily call time (once a day, if they haven't talked yet)
+//    - rings each parent at their daily call time and at each medicine time
 //    - no answer after 15 minutes -> rings again once; still no answer -> alerts the family.
 //
 // Prototype note: this rings the parent's installed Khairiyat app over the internet.
@@ -16,12 +16,14 @@ import { db } from "./db";
 import { notifyFamily } from "./notify";
 import { sendPush, setupPush, type StoredDevice } from "./push";
 import type { PushSubscriptionInput } from "./push-endpoint";
-import { callTimeIso, isCallDue, pakistanToday } from "./time";
+import { readMedicines } from "./medicines";
+import { callSlots, callTimeIso, dueSlot, pakistanToday } from "./time";
 
 export const RING_MINUTES = 15; // how long a call rings before it counts as not answered
 const RETRY_AFTER_DECLINE_MINUTES = 30; // "Later" -> ring again after this long
 const MAX_ATTEMPTS = 2; // first call + one retry
 const MAX_DEVICES_PER_PARENT = 5;
+const TALKED_BEFORE_MINUTES = 30; // a conversation this close before a medicine time covers it
 
 export type CallKind = "scheduled" | "manual" | "retry";
 export type CallStatus = "ringing" | "answered" | "declined" | "missed" | "failed";
@@ -179,20 +181,26 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
     }
   }
 
-  // 2. Daily calls that are due now.
-  const { data: parents } = await supabase.from("parents").select("id, checkin_time").eq("consent_given", true);
+  // 2. Calls that are due now: the daily check-in and the medicine times.
+  const { data: parents } = await supabase.from("parents").select("id, checkin_time, medicines").eq("consent_given", true);
   for (const row of parents ?? []) {
-    const checkinTime = String(row.checkin_time).slice(0, 5);
-    if (!isCallDue(checkinTime, minutesNow)) continue;
+    const slots = callSlots(String(row.checkin_time).slice(0, 5), readMedicines(row.medicines));
+    const slot = dueSlot(slots, minutesNow);
+    if (!slot) continue;
 
-    // Once for each call time: only calls made since today's call time count, so a family
-    // that moves the time to later in the day still gets that call.
-    // No call at all if the parent already talked today (e.g. opened the app themselves).
-    const [{ count: callsToday }, { count: checkinsToday }] = await Promise.all([
-      supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", row.id).in("kind", ["scheduled", "retry"]).gte("created_at", callTimeIso(startIso, checkinTime)),
-      supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", row.id).eq("is_sample", false).gte("created_at", startIso),
+    // Once for each call time: only calls made since that time count, so a family that
+    // moves a time to later in the day still gets that call.
+    // No call if the parent already talked: for the plain daily check-in any conversation
+    // today counts; a medicine call only skips a conversation from shortly before.
+    const slotIso = callTimeIso(startIso, slot.time);
+    const talkedSince = slot.medicines.length
+      ? new Date(Date.parse(slotIso) - TALKED_BEFORE_MINUTES * 60 * 1000).toISOString()
+      : startIso;
+    const [{ count: callsSince }, { count: checkins }] = await Promise.all([
+      supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", row.id).in("kind", ["scheduled", "retry"]).gte("created_at", slotIso),
+      supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", row.id).eq("is_sample", false).gte("created_at", talkedSince),
     ]);
-    if (callsToday || checkinsToday) continue;
+    if (callsSince || checkins) continue;
     if ((await deviceCount(row.id)) === 0) continue; // no phone set up yet
 
     const parent = await getParentById(row.id);

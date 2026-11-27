@@ -44,6 +44,15 @@ describe("buildSystemPrompt", () => {
     assert.ok(!buildSystemPrompt(parent({ isDemo: true }), []).includes("paigham wala button"));
   });
 
+  it("asks about the medicine whose time it is", () => {
+    const timed = parent({ medicines: [{ name: "BP ki goli", when: "subah", time: "08:00" }, { name: "Sugar ki goli", when: "dopahar", time: "14:00" }] });
+    const afternoon = buildSystemPrompt(timed, [], new Date("2026-11-27T09:05:00Z")); // 14:05 in Pakistan
+    assert.ok(afternoon.includes("ABHI IN DAWAIYON KA WAQT HAI: Sugar ki goli."));
+    assert.ok(afternoon.includes("dawai wali chhoti call"));
+    const evening = buildSystemPrompt(timed, [], new Date("2026-11-27T14:00:00Z")); // 19:00
+    assert.ok(evening.includes("Abhi kisi tay waqt wali dawai ka waqt nahi hai"));
+  });
+
   it("tells the AI the current Pakistan time", () => {
     assert.ok(buildSystemPrompt(parent(), []).includes("Abhi Pakistan mein asal waqt hai"));
   });

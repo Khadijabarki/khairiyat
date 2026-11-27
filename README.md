@@ -50,6 +50,7 @@ To try the whole flow, create a family account, add a parent, open their QR link
 
 **For the family**
 - Sign up, add parents (medicines, interests, daily call time, voice), and share a private link by QR code
+- **Calls at medicine times**: each medicine can have its own time; Khairiyat also calls then and asks about that medicine
 - **Daily call** at the chosen time, with a retry if unanswered and an alert on the dashboard if the retry is also unanswered; **Call now** button
 - After each conversation: a short summary, scores (mood, sleep, pain, medicine, food) and a message preview
 - **Notifications on the family's phone or computer** (optional, one tap to turn on): emergencies during the call, the summary after it, and unanswered calls

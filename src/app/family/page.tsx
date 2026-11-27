@@ -6,6 +6,7 @@ import { RiskBadge, SampleTag, SignOutButton } from "@/components/family/parts";
 import { demoEmail, requireUser } from "@/lib/auth";
 import { formatDay, formatTime, getDashboardData } from "@/lib/dashboard";
 import { getFamilyParents } from "@/lib/data";
+import { callSlots } from "@/lib/time";
 import { vapidPublicKey } from "@/lib/push";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
@@ -87,7 +88,7 @@ async function FamilyHome() {
                       </p>
                     </>
                   ) : (
-                    <p className="mt-2 text-stone-500">{t("No check-ins yet. Daily call at", "ابھی کوئی بات نہیں ہوئی۔ روز کال کا وقت")} <bdi dir="ltr">{parent.checkinTime}</bdi></p>
+                    <p className="mt-2 text-stone-500">{t("No check-ins yet. Daily calls at", "ابھی کوئی بات نہیں ہوئی۔ روز کال کے اوقات")} <bdi dir="ltr">{callSlots(parent.checkinTime, parent.medicines).map((s) => s.time).join(", ")}</bdi></p>
                   )}
                 </Link>
               </li>

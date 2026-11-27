@@ -20,6 +20,7 @@ import { MAX_VOICE_BYTES, looksLikeAudio, voiceSeconds, voiceType } from "@/lib/
 
 import type { ParentFormValues } from "@/components/family/ParentForm";
 import { say } from "@/lib/server-messages";
+import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
 
 // On an error, the typed-in values are sent back so the form can show them again
@@ -40,11 +41,12 @@ function text(form: FormData, key: string, max: number): string {
 
 // What the family typed, for showing the form again after an error.
 function echoValues(form: FormData): ParentFormValues {
-  const medicines: { name: string; when: string }[] = [];
+  const medicines: { name: string; when: string; time?: string }[] = [];
   for (let i = 0; i < MAX_MEDICINES; i++) {
     const medName = text(form, `med_name_${i}`, 60);
     const when = text(form, `med_when_${i}`, 60);
-    if (medName || when) medicines.push({ name: medName, when });
+    const time = text(form, `med_time_${i}`, 5);
+    if (medName || when || time) medicines.push({ name: medName, when, time });
   }
   return {
     name: text(form, "name", 80),
@@ -82,10 +84,11 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
   const childPhone = text(form, "child_phone", 30).replace(/[^\d+]/g, "");
   if (childPhone && !/^\+?\d{7,15}$/.test(childPhone)) return { error: "Please check the phone number." };
 
-  const medicines: { name: string; when: string }[] = [];
+  const medicines: { name: string; when: string; time?: string }[] = [];
   for (let i = 0; i < MAX_MEDICINES; i++) {
     const medName = text(form, `med_name_${i}`, 60);
-    if (medName) medicines.push({ name: medName, when: text(form, `med_when_${i}`, 60) });
+    const time = text(form, `med_time_${i}`, 5);
+    if (medName) medicines.push({ name: medName, when: text(form, `med_when_${i}`, 60), ...(isClockTime(time) ? { time } : {}) });
   }
 
   const topics = text(form, "topics", 400)
