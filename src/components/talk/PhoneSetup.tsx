@@ -30,6 +30,23 @@ async function saveSubscription(talkToken: string, subscription: PushSubscriptio
   return res.ok;
 }
 
+// Remembers that the button was pressed on this phone for this parent's screen. The browser's
+// permission covers the whole site, so without this, opening any parent's link would silently
+// move the phone's calls to that parent and the button would only flash and disappear.
+const allowedKey = (talkToken: string) => `khairiyat-calls:${talkToken}`;
+function wasAllowedHere(talkToken: string): boolean {
+  try {
+    return localStorage.getItem(allowedKey(talkToken)) === "yes";
+  } catch {
+    return false;
+  }
+}
+function rememberAllowed(talkToken: string) {
+  try {
+    localStorage.setItem(allowedKey(talkToken), "yes");
+  } catch {} // private browsing: the button simply shows again next time
+}
+
 // Facts about this phone and browser, read safely on the client (the server always sees "no").
 const noSubscribe = () => () => {};
 function subscribeStandalone(onChange: () => void) {
@@ -59,6 +76,9 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
   const [askedPermission, setAskedPermission] = useState<NotificationPermission | null>(null);
   const permission = askedPermission ?? browserPermission;
   const [ready, setReady] = useState(false); // this phone can receive calls
+  // True until we know whether calls are already set up, so the button never flashes.
+  const [checking, setChecking] = useState(true);
+  const [justAllowed, setJustAllowed] = useState(false); // show "done" after the button press
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState<[en: string, ur: string] | null>(null);
 
@@ -69,17 +89,19 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
     };
     window.addEventListener("beforeinstallprompt", onInstallPrompt);
 
-    // Register the background worker that makes the phone ring. If calls were already allowed,
-    // quietly re-send the subscription so the server always has a fresh one.
+    // Register the background worker that makes the phone ring. If calls were already allowed
+    // for this screen, quietly re-send the subscription so the server always has a fresh one.
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker
         .register("/sw.js", { scope: "/" })
         .then(async (registration) => {
           if (!("Notification" in window) || Notification.permission !== "granted") return;
+          if (!wasAllowedHere(talkToken)) return; // wait for the button
           const existing = await registration.pushManager.getSubscription();
           if (existing && (await saveSubscription(talkToken, existing))) setReady(true);
         })
-        .catch(() => {});
+        .catch(() => {})
+        .finally(() => setChecking(false));
     }
     return () => {
       window.removeEventListener("beforeinstallprompt", onInstallPrompt);
@@ -104,8 +126,11 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
       const subscription =
         (await registration.pushManager.getSubscription()) ??
         (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(vapidPublicKey) }));
-      if (await saveSubscription(talkToken, subscription)) setReady(true);
-      else setProblem(["Could not save yet. Please try again.", "ابھی محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔"]);
+      if (await saveSubscription(talkToken, subscription)) {
+        rememberAllowed(talkToken);
+        setReady(true);
+        setJustAllowed(true);
+      } else setProblem(["Could not save yet. Please try again.", "ابھی محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔"]);
     } catch {
       setProblem(["This phone could not be set up for calls yet.", "یہ فون ابھی کالز کے لیے تیار نہیں ہو سکا۔"]);
     } finally {
@@ -116,8 +141,8 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
   // iPhones only allow notifications for apps added to the home screen.
   const canAskForCalls = pushSupported && Boolean(vapidPublicKey) && (!isIos || installed);
   const showInstall = !installed && (installPrompt !== null || isIos);
-  const showAllow = canAskForCalls && !ready && permission !== "denied";
-  if (!showInstall && !showAllow && permission !== "denied") return null;
+  const showAllow = canAskForCalls && !checking && !ready && permission !== "denied";
+  if (!showInstall && !showAllow && !justAllowed && permission !== "denied") return null;
 
   const button =
     "w-full rounded-2xl px-5 py-2 text-[clamp(1.05rem,4.8vw,1.3rem)] leading-[2] shadow active:scale-95 disabled:opacity-60";
@@ -138,6 +163,11 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
         <button onClick={allowCalls} disabled={busy} className={`${button} bg-emerald-700 text-white`}>
           {busy ? "…" : t("🔔 Allow Khairiyat calls", "🔔 خیریت کی کال کی اجازت دیں")}
         </button>
+      )}
+      {justAllowed && (
+        <p role="status" className="text-[clamp(0.95rem,4.2vw,1.1rem)] leading-[2.2] text-emerald-800">
+          {t("✓ Khairiyat calls will now come to this phone.", "✓ اب خیریت کی کالز اس فون پر آئیں گی۔")}
+        </p>
       )}
       {permission === "denied" && (
         <p className="text-[clamp(0.9rem,4vw,1.05rem)] leading-[2.2] text-rose-700">
