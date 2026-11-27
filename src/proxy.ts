@@ -4,6 +4,7 @@
 // It does NOT decide who may see what: every page and action checks the user itself.
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { SESSION_COOKIE_OPTIONS } from "./lib/session-cookie";
 
 export async function proxy(request: NextRequest) {
   let response = NextResponse.next({ request });
@@ -12,6 +13,7 @@ export async function proxy(request: NextRequest) {
   if (!url || !key) return response;
 
   const supabase = createServerClient(url, key, {
+    cookieOptions: SESSION_COOKIE_OPTIONS,
     cookies: {
       getAll: () => request.cookies.getAll(),
       setAll: (list) => {

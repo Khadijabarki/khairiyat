@@ -8,6 +8,7 @@ import "server-only";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { SESSION_COOKIE_OPTIONS } from "./session-cookie";
 import { connection } from "next/server";
 
 export type FamilyUser = { id: string; email: string };
@@ -24,6 +25,7 @@ export async function authClient() {
   const { url, key } = authSettings();
   const store = await cookies();
   return createServerClient(url, key, {
+    cookieOptions: SESSION_COOKIE_OPTIONS,
     cookies: {
       getAll: () => store.getAll(),
       setAll: (list) => {

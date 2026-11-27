@@ -126,6 +126,9 @@ try {
   await submit();
   ok("sign up lands on the family page", (await url()) === "/family", await url());
   ok("new family sees the empty state", (await text()).includes("Add your first parent"));
+  const session = (await send("Network.getAllCookies")).cookies.filter((c) => c.name.startsWith("sb-"));
+  ok("sign-in cookie is hidden from page scripts (httpOnly)", session.length > 0 && session.every((c) => c.httpOnly));
+  ok("page scripts can't read the sign-in cookie", !(await evaluate("document.cookie")).includes("sb-"));
 
   await go("/family/new");
   await fill("#name", "Test Ammi Begum");

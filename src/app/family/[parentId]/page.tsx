@@ -120,7 +120,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
 
       <CallPanel parent={parent} devices={devices} lastCall={lastCall} />
 
-      {latest ? <TodayCard parent={parent} checkin={latest} /> : (
+      {latest ? <TodayCard checkin={latest} /> : (
         <p className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-stone-600">
           No check-ins yet. Open {parent.nickname}&apos;s talk screen to have the first conversation.
         </p>
@@ -142,7 +142,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
   );
 }
 
-function TodayCard({ parent, checkin }: { parent: Parent; checkin: Checkin }) {
+function TodayCard({ checkin }: { checkin: Checkin }) {
   return (
     <section className="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -185,18 +185,18 @@ function TodayCard({ parent, checkin }: { parent: Parent; checkin: Checkin }) {
           })}
         </ul>
       )}
-      <p className="mt-3 text-xs text-stone-500">{parent.childName} also received this as a message.</p>
     </section>
   );
 }
 
-// Shows the messages as they arrive on the son's/daughter's phone.
+// A preview of the messages written for the son/daughter. Nothing is sent from this page.
 function PhonePreview({ parent, checkins }: { parent: Parent; checkins: Checkin[] }) {
   const messages = checkins.filter((c) => c.family_message).slice(0, 4);
   if (messages.length === 0) return null;
   return (
     <section className="mt-5">
-      <h2 className="font-semibold text-stone-900">On {parent.childName}&apos;s phone</h2>
+      <h2 className="font-semibold text-stone-900">Message preview for {parent.childName}</h2>
+      <p className="text-xs text-stone-500">How the updates would look as messages. They are not sent yet.</p>
       <div className="mt-2 rounded-3xl bg-stone-800 p-3 sm:max-w-sm">
         <div className="space-y-2 rounded-2xl bg-[#e5ddd5] p-3">
           {[...messages].reverse().map((c) => (

@@ -1,36 +1,181 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# خیریت · Khairiyat
 
-## Getting Started
+**An AI companion that calls elderly parents every day, talks with them in Urdu, and keeps their family informed.**
 
-First, run the development server:
+Built for the Capital Youth Expo (CYE) 2026 Innovation Sprint Hackathon · Track: **Urdu & Regional Tech**
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+**Live demo:** https://khairiyat.vercel.app
+
+## Team ByteBloom
+
+| Name | Role |
+|---|---|
+| Ayesha Shabeer | Team Lead |
+| Khadija Barki | Team Member |
+
+## The problem
+
+Many parents in Pakistan live alone or far from their children, who work in other cities or abroad. Their children worry: did Ammi take her medicine, is Abbu feeling well, would anyone know if something went wrong? Most apps expect an older person to type, read English and remember to open them.
+
+Khairiyat asks them nothing but to **press one big button** and talk, in the language they speak at home.
+
+> Khairiyat doesn't replace family. It brings families closer.
+
+## Try it in 3 minutes
+
+1. Open https://khairiyat.vercel.app and click **Open the demo**. No sign-up is needed. You'll see two demo parents with a week of sample data (labelled *Sample*).
+2. Open **Ammi**, then **Open Ammi's talk screen** (or go to https://khairiyat.vercel.app/talk/demo-ammi).
+3. Press **بات کریں**, allow the microphone (headphones help), and talk in Urdu. For example:
+   - *"Raat ko neend nahi aayi, ghutne mein dard tha"*
+   - *"Kisi ne phone kar ke OTP maanga tha"* (fraud warning)
+   - *"Seene mein dard ho raha hai"* (emergency: help buttons appear and the dashboard shows an alert)
+4. Press **بات ختم کریں**, then return to Ammi's dashboard. The new check-in appears within about 10 seconds.
+
+To try the whole flow, create a family account, add a parent, open their QR link on a phone, install the app, allow calls, and click **Call now** on the dashboard.
+
+## What it does
+
+**For the parent**
+- Real-time **voice conversation in Pakistani Urdu**; understands Punjabi (replies in Urdu by default)
+- Speaks like a **daughter or a son**, with the right Urdu grammar for a mother or a father
+- **Remembers previous days** ("Yesterday you mentioned knee pain, how is it today?")
+- Asks about sleep, medicines (at the right time of day), pain, food and mood; never diagnoses or suggests new medicines
+- Large Nastaliq Urdu screen with one button; installable as an app
+
+**Safety**
+- Watches for **22 situations** in two levels: 12 urgent (chest pain, stroke signs, a fall, breathing trouble, gas leak, intruder and more) and 10 concerns (fever, missed medicine, loneliness, fraud calls and more)
+- Two layers of detection: the AI raises an alert itself (tool calling), and a keyword check in Roman Urdu and Urdu script backs it up
+- Urgent situations show **one-tap buttons** for Rescue 1122 (police 15 for an intruder) and for calling the son or daughter, plus safety advice in Urdu
+- The AI never calls emergency services by itself: a person decides
+
+**For the family**
+- Sign up, add parents (medicines, interests, daily call time, voice), and share a private link by QR code
+- **Daily call** at the chosen time, with a retry if unanswered and an alert on the dashboard if the retry is also unanswered; **Call now** button
+- After each conversation: a short summary, scores (mood, sleep, pain, medicine, food) and a message preview
+- Live alerts during the call, 7-day charts and history; the dashboard refreshes by itself
+- If the AI summary is unavailable, the check-in and its alerts are still saved and marked as needing attention
+
+## How it works
+
+```mermaid
+flowchart LR
+  P[Parent's phone<br/>talk screen] -- "one-time token request" --> S[Next.js server<br/>on Vercel]
+  P <-- "live audio" --> L[Gemini Live API]
+  S -- "creates locked token" --> L
+  S -- "summary after the call" --> G[Gemini API]
+  S <--> D[(Supabase<br/>Postgres + Auth)]
+  F[Family dashboard] <--> S
+  T[cron-job.org / GitHub Actions<br/>timer] -- "secret request" --> S
+  S -- "Web Push call" --> P
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+1. The browser asks our server for a **single-use token**. The server locks the model, voice and instructions (including memory and medicines) into it, so the API key never reaches the browser.
+2. Audio streams between the phone and Gemini Live. The AI calls a `raise_alert` tool when it hears something worrying.
+3. After the call, the server asks Gemini for a summary in a fixed JSON shape, checks every field again, and saves **only the summary and scores**. If the AI is busy, a basic check-in is saved and the summary is retried.
+4. A timer calls the scheduler every few minutes. It rings parents whose call time has arrived, using Web Push.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Privacy and security
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- **Khairiyat never stores conversation audio or transcripts.** The text is held in memory only to make the summary.
+- Conversations are processed by **Google's Gemini API**. On the free tier, Google may use that content to improve its products, so please test with made-up conversations. A production service needs a paid tier with suitable data terms.
+- The parent's consent is required when they are added, and the AI says it is an AI if asked.
+- Database tables have Row Level Security on and give browser roles no access; only the server reads them, and every family page and action checks ownership.
+- Family sign-in uses Supabase Auth with `httpOnly` cookies. Each parent's talk link holds a random 32-character token that the family can replace.
+- API routes check the request origin, validate input and limit body size; rate limits are kept in memory (best effort on serverless hosting).
+- Security headers block framing and restrict microphone use to this site. Error logs record the error type, never messages that could contain secrets.
 
-## Learn More
+## Current limits (prototype)
 
-To learn more about Next.js, take a look at the following resources:
+- Calls ring the **installed web app over the internet**. With the app closed, the phone shows a notification with vibration; it does not ring continuously like a phone call, and some phones or Chrome's spam protection may delay or hide it. Real phone-line calls are not built.
+- Timer accuracy depends on the scheduling service (a few minutes).
+- Family alerts appear **on the dashboard**. The "message to the family" is a preview there; no WhatsApp or SMS is sent. An optional Telegram message exists in the code (one chat for the whole server, not enabled in the live demo).
+- Gemini's spoken Punjabi sounds unnatural, so replies default to Urdu.
+- The AI is not a medical device and can mishear or miss things. It must not be relied on for emergencies.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Roadmap
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Calls to an ordinary phone line, so no smartphone or internet is needed
+- WhatsApp summaries, and escalation from son to relative to neighbour
+- Voice messages from the family, played during the daily call
+- Monthly report for the doctor
+- Natural Pakistani Punjabi, Sindhi, Pashto and Saraiki voices
 
-## Deploy on Vercel
+## APIs, services and libraries used
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+### External APIs and services
+| Service | Used for |
+|---|---|
+| Google Gemini Live API (`gemini-3.8-live`) | Real-time voice conversation and alert tool calls |
+| Google Gemini API (`gemini-3.5-flash-lite`, falling back to `gemini-3.5-flash`, `gemini-3.8-flash`) | Summaries and scores |
+| Supabase (Postgres, Auth) | Database and family accounts |
+| Web Push with VAPID, delivered by browser push services (for example Google FCM) | Ringing the parent's phone |
+| cron-job.org | Runs the call scheduler |
+| GitHub Actions | Backup scheduler |
+| Telegram Bot API | Optional family message (disabled in the live demo) |
+| Vercel | Hosting |
+| Google Fonts (Noto Nastaliq Urdu, Geist) | Fonts, loaded through `next/font` and when generating icons |
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Browser features used: Web Audio and AudioWorklet, microphone capture, Service Worker, Push, Notifications, Vibration, BroadcastChannel, Web App Manifest.
+
+### Libraries
+| Package | Licence | Used for |
+|---|---|---|
+| next 16, react 19, react-dom 19 | MIT | Web app and server |
+| @google/genai | Apache-2.0 | Gemini APIs |
+| @supabase/supabase-js, @supabase/ssr | MIT | Database and sign-in |
+| web-push | MPL-2.0 | Sending push messages |
+| qrcode | MIT | QR codes for talk links |
+| server-only | MIT | Keeps server code out of the browser |
+| tailwindcss, @tailwindcss/turbopack | MIT | Styling |
+| typescript | Apache-2.0 | Type checking |
+| eslint, eslint-config-next | MIT | Code checks |
+| tsx | MIT | Running tests |
+| @types/node, @types/react, @types/react-dom, @types/qrcode, @types/web-push | MIT | Type definitions |
+
+The project started from the `create-next-app` template. The charts are hand-written SVG.
+
+### AI coding assistance
+Developed with help from an AI coding assistant (Claude Code), which the competition rules permit.
+
+## Run it locally
+
+Needs Node.js 20.9 or newer, a free Gemini API key and a free Supabase project.
+
+```bash
+npm install
+cp .env.example .env.local      # then fill in your values
+npx web-push generate-vapid-keys # put the two keys in .env.local
+```
+
+1. In Supabase, open **SQL Editor** and run [`supabase/schema.sql`](supabase/schema.sql).
+2. In **Authentication → Sign In / Providers → Email**, turn **Confirm email** off (prototype only).
+3. Set a long random `DEMO_PASSWORD` and `CRON_SECRET` in `.env.local`.
+
+```bash
+npm run setup:demo   # demo account, demo parents and sample data
+npm run dev          # http://localhost:3000
+```
+
+**Daily calls:** have a scheduler send a request to `/api/cron/tick` every 5 minutes with the header `Authorization: Bearer <CRON_SECRET>`.
+
+## Tests
+
+| Command | What it checks |
+|---|---|
+| `npm test` | 60 offline unit tests: safety rules, script conversion, security helpers, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm run test:e2e` | 24 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
+| `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
+
+Also: `npm run lint` and `npm run build`.
+
+## Project layout
+
+```
+src/app/            pages and API routes (talk screen, family dashboard, sign-in)
+src/components/     UI for the parent's screen and the dashboard
+src/lib/            AI instructions, safety rules, saving check-ins, calls, security
+public/             service worker, microphone processor, app icons
+supabase/           database schema
+scripts/            demo data and icon generator
+tests/              unit, browser and AI tests
+```
