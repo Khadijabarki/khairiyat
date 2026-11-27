@@ -20,6 +20,9 @@ const nextConfig: NextConfig = {
   partialPrefetching: true,
   // Don't advertise which framework the server runs.
   poweredByHeader: false,
+  // Put page details (like each parent's app manifest) in <head> for every browser, instead of
+  // streaming them into <body> later: Chrome can only install the app if the manifest is in <head>.
+  htmlLimitedBots: /.*/,
   // Old demo links from the first version keep working.
   async redirects() {
     return [
