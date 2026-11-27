@@ -6,8 +6,8 @@
 // 2. Answer opens the talk screen and the conversation starts. Later = "declined".
 // 3. The scheduler (src/app/api/cron/tick) runs every few minutes:
 //    - rings each parent at their daily call time and at each medicine time
-//    - a call rings for 5 minutes; no answer -> rings again 15 minutes after the first call;
-//      still no answer after that second call -> alerts the family (see call-rules.ts).
+//    - a call rings for 5 minutes, then becomes a "missed call"; it rings again 10 minutes
+//      after the first call; still no answer -> alerts the family (see call-rules.ts).
 //
 // Prototype note: this rings the parent's installed Khairiyat app over the internet.
 // Production adds ordinary phone-line calls for parents without a smartphone.
@@ -17,7 +17,15 @@ import { db } from "./db";
 import { notifyFamily } from "./notify";
 import { sendPush, setupPush, type StoredDevice } from "./push";
 import type { PushSubscriptionInput } from "./push-endpoint";
-import { RETRY_AFTER_DECLINE_MINUTES, RING_MINUTES, SCHEDULER_GRACE_SECONDS, nextStep } from "./call-rules";
+import {
+  GIVE_UP_MINUTES,
+  RETRY_AFTER_DECLINE_MINUTES,
+  RETRY_MINUTES,
+  RING_MINUTES,
+  SCHEDULER_GRACE_SECONDS,
+  nextStep,
+  ringsUntil,
+} from "./call-rules";
 import { readMedicines } from "./medicines";
 import { callSlots, callTimeIso, dueSlot, pakistanToday } from "./time";
 
@@ -85,10 +93,13 @@ export async function ringParent(parent: Parent, kind: CallKind, attempt = 1): P
 
   const { data: subs } = await supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("parent_id", parent.id);
   // What the phone shows. The talk link is opened when they answer (?call= tells the screen which call).
+  // `until` lets the phone stop ringing exactly when this call ends, however late it is opened.
+  const until = ringsUntil(call.created_at);
   const payload = {
     type: "call",
     callId: call.id,
-    url: `/talk/${parent.talkToken}?call=${call.id}`,
+    until,
+    url: `/talk/${parent.talkToken}?call=${call.id}&until=${until}`,
     title: "📞 خیریت کال کر رہی ہے",
     body: `${parent.childNameUr} نے آپ کا حال پوچھا ہے۔ بات کرنے کے لیے دبائیں۔`,
   };
@@ -102,6 +113,25 @@ export async function ringParent(parent: Parent, kind: CallKind, attempt = 1): P
   const update = reached > 0 ? { devices: reached } : { devices: 0, status: "failed" };
   await supabase.from("calls").update(update).eq("id", call.id);
   return { ...(call as Call), ...update } as Call;
+}
+
+// Replaces the ringing notification with a "missed call" and closes an open ringing screen.
+async function showMissedCall(parent: Parent, callId: string): Promise<void> {
+  const supabase = db();
+  if (!supabase) return;
+  const { data: subs } = await supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("parent_id", parent.id);
+  const { gone } = await sendPush(
+    (subs ?? []) as StoredDevice[],
+    {
+      type: "missed",
+      callId,
+      url: `/talk/${parent.talkToken}`,
+      title: "📵 خیریت کی مس کال",
+      body: `${parent.childNameUr} نے آپ کا حال پوچھا تھا۔ بات کرنے کے لیے دبائیں۔`,
+    },
+    { ttlSeconds: GIVE_UP_MINUTES * 60, topic: "khairiyat-call" },
+  );
+  if (gone.length) await supabase.from("push_subscriptions").delete().in("id", gone);
 }
 
 // The parent answered or pressed "Later" (only for their own call that is still ringing).
@@ -137,18 +167,21 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
   if (!supabase || !setupPush()) return report;
   const { startIso, minutesNow } = pakistanToday(now);
 
-  // 1. Unanswered calls: ringing too long, or "Later" a while ago.
+  // 1. Unanswered calls: stop the ringing, ring again, or tell the family.
   const before = (minutes: number) => new Date(now.getTime() - (minutes * 60 - SCHEDULER_GRACE_SECONDS) * 1000).toISOString();
-  const ringCutoff = before(RING_MINUTES);
-  const declineCutoff = before(RETRY_AFTER_DECLINE_MINUTES);
-  const { data: stale } = await supabase
+  const { data: open } = await supabase
     .from("calls")
     .select("*")
-    .or(`and(status.eq.ringing,created_at.lt.${ringCutoff}),and(status.eq.declined,created_at.lt.${declineCutoff})`)
+    .or(
+      `and(status.eq.ringing,created_at.lt.${before(RING_MINUTES)}),` +
+        `and(status.eq.missed,attempt.eq.1,created_at.lt.${before(RETRY_MINUTES)}),` +
+        `and(status.eq.declined,created_at.lt.${before(RETRY_AFTER_DECLINE_MINUTES)})`,
+    )
     .gte("created_at", startIso)
-    .limit(100);
+    .order("created_at", { ascending: false })
+    .limit(200);
 
-  for (const call of (stale as Call[]) ?? []) {
+  for (const call of (open as Call[]) ?? []) {
     const step = nextStep(call, now.getTime());
     if (step === "wait" || step === "done") continue;
 
@@ -157,7 +190,8 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
       supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", call.parent_id).gt("created_at", call.created_at),
       supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", call.parent_id).eq("is_sample", false).gt("created_at", call.created_at),
     ]);
-    if (call.status === "ringing") await supabase.from("calls").update({ status: "missed" }).eq("id", call.id);
+    // Close the call first, so the next run can't tell the family a second time.
+    if (call.status === "ringing" || step === "alert") await supabase.from("calls").update({ status: "missed" }).eq("id", call.id);
     if (newer || talked) continue;
 
     const parent = await getParentById(call.parent_id);
@@ -165,22 +199,25 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
     if (step === "retry") {
       await ringParent(parent, "retry", call.attempt + 1);
       report.retries++;
-    } else {
-      // Still no answer after the retry: tell the family.
-      report.missed++;
-      await supabase.from("live_alerts").insert({
-        parent_id: parent.id,
-        category: "no_answer",
-        level: "concern",
-        reason: `${parent.nickname} ne aaj ki call ka jawab nahi diya. Please unhein khud call kar lein.`,
-        source: "ai",
-      });
-      await notifyFamily(parent, {
-        title: `📵 ${parent.nickname} ne jawab nahi diya`,
-        body: `Aaj ki Khairiyat call ka jawab nahi mila. Please ${parent.nickname} ko khud call kar lein.`,
-        urgent: true,
-      });
+      continue;
     }
+    if (call.status === "ringing") await showMissedCall(parent, call.id);
+    if (step === "stop") continue;
+
+    // Still no answer after the second call: tell the family.
+    report.missed++;
+    await supabase.from("live_alerts").insert({
+      parent_id: parent.id,
+      category: "no_answer",
+      level: "concern",
+      reason: `${parent.nickname} ne aaj ki call ka jawab nahi diya. Please unhein khud call kar lein.`,
+      source: "ai",
+    });
+    await notifyFamily(parent, {
+      title: `📵 ${parent.nickname} ne jawab nahi diya`,
+      body: `Aaj ki Khairiyat call ka jawab nahi mila. Please ${parent.nickname} ko khud call kar lein.`,
+      urgent: true,
+    });
   }
 
   // 2. Calls that are due now: the daily check-in and the medicine times.

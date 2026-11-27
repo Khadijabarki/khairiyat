@@ -1,42 +1,54 @@
-// Ringing, retry and family alert timing.
+// Ringing, missed call, retry and family alert timing.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { nextStep, stoppedRinging } from "../../src/lib/call-rules";
+import { nextStep, ringsUntil, stoppedRinging } from "../../src/lib/call-rules";
 
 const start = "2026-11-28T03:00:00.000Z";
 const at = (minutes: number) => Date.parse(start) + minutes * 60 * 1000;
 const call = (status: string, attempt: number) => ({ status, attempt, created_at: start });
 
 describe("nextStep", () => {
-  it("calls again 15 minutes after an unanswered first call", () => {
-    assert.equal(nextStep(call("ringing", 1), at(5)), "wait");
-    assert.equal(nextStep(call("ringing", 1), at(10)), "wait");
-    assert.equal(nextStep(call("ringing", 1), at(15)), "retry");
+  it("stops the first call after 5 minutes without telling the family", () => {
+    assert.equal(nextStep(call("ringing", 1), at(4)), "wait");
+    assert.equal(nextStep(call("ringing", 1), at(5)), "stop");
   });
 
-  it("tells the family 5 minutes after an unanswered second call", () => {
-    assert.equal(nextStep(call("ringing", 2), at(4)), "wait");
-    assert.equal(nextStep(call("ringing", 2), at(5)), "alert");
+  it("calls again 10 minutes after the first call", () => {
+    assert.equal(nextStep(call("missed", 1), at(5)), "wait");
+    assert.equal(nextStep(call("missed", 1), at(10)), "retry");
+  });
+
+  it("stops the second call after 5 minutes and tells the family, once", () => {
+    assert.equal(nextStep(call("ringing", 2), at(5)), "stop-and-alert");
+    assert.equal(nextStep(call("missed", 2), at(10)), "done");
   });
 
   it("is not delayed when the scheduler runs a few seconds early", () => {
-    assert.equal(nextStep(call("ringing", 1), at(15) - 10_000), "retry");
-    assert.equal(nextStep(call("ringing", 2), at(5) - 10_000), "alert");
+    assert.equal(nextStep(call("ringing", 1), at(5) - 10_000), "stop");
+    assert.equal(nextStep(call("missed", 1), at(10) - 10_000), "retry");
   });
 
-  it("waits 30 minutes after 'Later', and does nothing more after the second 'Later'", () => {
-    assert.equal(nextStep(call("declined", 1), at(15)), "wait");
-    assert.equal(nextStep(call("declined", 1), at(30)), "retry");
-    assert.equal(nextStep(call("declined", 2), at(60)), "done");
+  it("calls again after 'Later', and tells the family after a second 'Later'", () => {
+    assert.equal(nextStep(call("declined", 1), at(5)), "wait");
+    assert.equal(nextStep(call("declined", 1), at(10)), "retry");
+    assert.equal(nextStep(call("declined", 2), at(10)), "alert");
   });
 
-  it("leaves answered calls alone", () => {
-    assert.equal(nextStep(call("answered", 1), at(60)), "done");
+  it("never rings again hours later", () => {
+    assert.equal(nextStep(call("missed", 1), at(90)), "done");
+    assert.equal(nextStep(call("declined", 1), at(90)), "done");
+    assert.equal(nextStep(call("ringing", 2), at(90)), "stop");
+  });
+
+  it("leaves answered and failed calls alone", () => {
+    assert.equal(nextStep(call("answered", 1), at(20)), "done");
+    assert.equal(nextStep(call("failed", 1), at(20)), "done");
   });
 });
 
-describe("stoppedRinging", () => {
-  it("is true from 5 minutes", () => {
+describe("ringing time", () => {
+  it("is counted from when the call was made", () => {
+    assert.equal(ringsUntil(start), at(5));
     assert.equal(stoppedRinging(start, at(4.9)), false);
     assert.equal(stoppedRinging(start, at(5)), true);
   });

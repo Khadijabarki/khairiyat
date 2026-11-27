@@ -59,9 +59,12 @@ type Props = {
 // Incoming-call helpers: call ids are UUIDs; ?call=<id> is read from the page address.
 const isCallId = (v: unknown): v is string => typeof v === "string" && /^[0-9a-f-]{36}$/.test(v);
 const noSubscribe = () => () => {};
+// A call that has already ended (the notification was opened late) must not ring.
+const hasEnded = (until: unknown) => typeof until === "number" && until > 0 && Date.now() >= until;
+const readUntilParam = (): number => Number(new URLSearchParams(window.location.search).get("until")) || 0;
 const readCallParam = (): string | null => {
   const id = new URLSearchParams(window.location.search).get("call");
-  return isCallId(id) ? id : null;
+  return isCallId(id) && !hasEnded(readUntilParam()) ? id : null;
 };
 
 // Name of the channel that browser tabs use to tell each other a call has started.
@@ -86,6 +89,7 @@ export default function TalkScreen(props: Props) {
   // (the page opens with ?call=<id>) or, if the app is already open, from the background worker.
   const callFromLink = useSyncExternalStore(noSubscribe, readCallParam, () => null);
   const [callFromWorker, setCallFromWorker] = useState<string | null>(null);
+  const [workerUntil, setWorkerUntil] = useState(0); // when that call stops ringing
   const [handledCall, setHandledCall] = useState<string | null>(null);
   const incomingCallId = callFromWorker ?? (callFromLink && callFromLink !== handledCall ? callFromLink : null);
 
@@ -384,8 +388,18 @@ export default function TalkScreen(props: Props) {
   // If the app is already open when a call comes in, the background worker tells this page.
   useEffect(() => {
     const onMessage = (event: MessageEvent) => {
-      if (event.data?.type === "incoming-call" && isCallId(event.data.callId) && !activeRef.current) {
-        setCallFromWorker(event.data.callId);
+      const { type, callId, until } = event.data ?? {};
+      if (!isCallId(callId)) return;
+      if (type === "incoming-call" && !activeRef.current && !hasEnded(until)) {
+        setWorkerUntil(Number(until) || 0);
+        setCallFromWorker(callId);
+      }
+      if (type === "call-ended") {
+        setCallFromWorker((current) => (current === callId ? null : current));
+        if (new URLSearchParams(window.location.search).get("call") === callId) {
+          setHandledCall(callId);
+          window.history.replaceState(null, "", window.location.pathname);
+        }
       }
     };
     navigator.serviceWorker?.addEventListener("message", onMessage);
@@ -396,13 +410,17 @@ export default function TalkScreen(props: Props) {
   // scheduler treats it as "not answered" and tries again.
   useEffect(() => {
     if (!incomingCallId) return;
+    // Counted from when the call was made, not from when this screen opened.
+    const until = callFromWorker ? workerUntil : readUntilParam();
+    const longest = RING_MINUTES * 60 * 1000;
+    const remaining = until ? Math.min(longest, Math.max(0, until - Date.now())) : longest;
     const timer = setTimeout(() => {
       setCallFromWorker(null);
       setHandledCall(callFromLink);
       window.history.replaceState(null, "", window.location.pathname);
-    }, RING_MINUTES * 60 * 1000);
+    }, remaining);
     return () => clearTimeout(timer);
-  }, [incomingCallId, callFromLink]);
+  }, [incomingCallId, callFromLink, callFromWorker, workerUntil]);
 
   // Tells the server how the parent responded to the call, and clears ?call= from the address.
   function respondToCall(action: "answer" | "decline") {

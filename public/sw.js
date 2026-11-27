@@ -34,13 +34,34 @@ self.addEventListener("push", (event) => {
     return;
   }
 
+  // A call that ended without an answer: stop any ringing screen and leave a "missed call".
+  const missed = data.type === "missed" || (data.type === "call" && data.until && Date.now() >= data.until);
+  if (missed && data.url) {
+    event.waitUntil(
+      (async () => {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        for (const win of windows) win.postMessage({ type: "call-ended", callId: data.callId });
+        await self.registration.showNotification(data.type === "missed" ? data.title : "📵 خیریت کی مس کال", {
+          body: data.type === "missed" ? data.body : "بات کرنے کے لیے دبائیں۔",
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          tag: "khairiyat-call", // replaces the ringing notification
+          dir: "rtl",
+          lang: "ur",
+          data: { url: data.url.split("?")[0] },
+        });
+      })(),
+    );
+    return;
+  }
+
   if (data.type !== "call" || !data.url) return;
 
   event.waitUntil(
     (async () => {
       // If the app is already open, show the incoming-call screen right away.
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-      for (const win of windows) win.postMessage({ type: "incoming-call", callId: data.callId });
+      for (const win of windows) win.postMessage({ type: "incoming-call", callId: data.callId, until: data.until });
 
       // The "ringing": a notification that stays until answered, with a long vibration.
       await self.registration.showNotification(data.title || "📞 خیریت", {
@@ -53,7 +74,7 @@ self.addEventListener("push", (event) => {
         vibrate: [800, 400, 800, 400, 800, 400, 800, 400, 800],
         dir: "rtl",
         lang: "ur",
-        data: { url: data.url, callId: data.callId },
+        data: { url: data.url, callId: data.callId, until: data.until },
         actions: [
           { action: "answer", title: "اٹھائیں" },
           { action: "later", title: "بعد میں" },
@@ -65,7 +86,7 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const { url, callId, family } = event.notification.data || {};
+  const { url, callId, family, until } = event.notification.data || {};
   if (!url) return;
 
   // A family alert opens that parent's dashboard.
@@ -100,7 +121,7 @@ self.addEventListener("notificationclick", (event) => {
       const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
       for (const win of windows) {
         if (new URL(win.url).pathname === new URL(url, self.location.origin).pathname) {
-          win.postMessage({ type: "incoming-call", callId });
+          if (callId) win.postMessage({ type: "incoming-call", callId, until });
           return win.focus();
         }
       }

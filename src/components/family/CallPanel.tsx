@@ -13,7 +13,7 @@ import { parentNames, translator } from "@/lib/i18n";
 const CALL_STATUS: Record<Call["status"], [en: string, ur: string]> = {
   ringing: ["📳 Ringing now…", "📳 ابھی گھنٹی بج رہی ہے…"],
   answered: ["✓ Answered", "✓ کال اٹھائی گئی"],
-  declined: ["⏰ Said \"later\" (Khairiyat will call again in 30 minutes)", "⏰ \"بعد میں\" کہا (خیریت 30 منٹ بعد دوبارہ کال کرے گی)"],
+  declined: ["⏰ Said \"later\"", "⏰ \"بعد میں\" کہا"],
   missed: ["📵 Not answered", "📵 جواب نہیں ملا"],
   failed: ["⚠ Couldn't reach the phone", "⚠ فون تک کال نہیں پہنچی"],
 };
@@ -27,7 +27,7 @@ function friendlyTime(hhmm: string): string { // shown left-to-right in both lan
 type Props = { parent: Parent; devices: number; lastCall: Call | null; nowMs: number };
 
 export default async function CallPanel({ parent, devices, lastCall, nowMs }: Props) {
-  // A first call stays open until the retry, but it only rings for a few minutes.
+  // A call stops ringing after a few minutes, even before the scheduler has noted it.
   const shownStatus =
     lastCall?.status === "ringing" && stoppedRinging(lastCall.created_at, nowMs) ? "missed" : lastCall?.status;
   const lang = await getLang();
@@ -48,7 +48,7 @@ export default async function CallPanel({ parent, devices, lastCall, nowMs }: Pr
               </li>
             ))}
           </ul>
-          <p>{t("A call rings for 5 minutes. No answer → it calls again 15 minutes after the first call, then tells you.", "کال 5 منٹ بجتی ہے۔ جواب نہ ملے تو پہلی کال کے 15 منٹ بعد دوبارہ کال، پھر آپ کو اطلاع۔")}</p>
+          <p>{t("A call rings for 5 minutes. No answer → it calls again 5 minutes later; still no answer → tells you.", "کال 5 منٹ بجتی ہے۔ جواب نہ ملے تو 5 منٹ بعد دوبارہ کال، پھر بھی جواب نہ ملے تو آپ کو اطلاع۔")}</p>
           <p>
             {t(`${nickname}'s phone:`, `${nickname} کا فون:`)}{" "}
             {devices > 0 ? (
