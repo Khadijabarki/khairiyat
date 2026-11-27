@@ -173,7 +173,7 @@ npm run dev          # http://localhost:3000
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 110 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm test` | 112 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
 | `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 

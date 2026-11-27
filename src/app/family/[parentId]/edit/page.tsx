@@ -11,6 +11,7 @@ import Avatar from "@/components/ui/Avatar";
 import { photoUrls } from "@/lib/photos";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
+import SidePanel from "@/components/ui/SidePanel";
 
 export const metadata: Metadata = { title: "Edit · Khairiyat", robots: { index: false, follow: false } };
 export const instant = false;
@@ -18,7 +19,7 @@ export const instant = false;
 export default function EditParentPage({ params }: PageProps<"/family/[parentId]/edit">) {
   return (
     <main className="ui-page">
-      <div className="mx-auto max-w-2xl">
+      <div className="mx-auto max-w-2xl lg:max-w-5xl">
         <Suspense fallback={<p className="text-stone-500">…</p>}>
           <EditForm params={params} />
         </Suspense>
@@ -38,7 +39,8 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
   const photos = await photoUrls([parent.id]);
 
   return (
-    <>
+    <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="min-w-0">
       <Link href={`/family/${parent.id}`} className="text-sm text-stone-500 hover:underline">{lang === "ur" ? "→" : "←"} {nickname}</Link>
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t(`Edit ${nickname}`, `${nickname} کی معلومات بدلیں`)}</h1>
       {parent.isDemo && (
@@ -83,6 +85,14 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
           </button>
         </form>
       )}
-    </>
+    </div>
+      <SidePanel
+        title={t(`Caring for ${nickname}`, `${nickname} کا خیال`)}
+        points={[
+          t("A photo makes the profile easy to recognise.", "تصویر سے پروفائل آسانی سے پہچانی جاتی ہے۔"),
+          t("Add a time to a medicine to get a call then.", "دوائی کا وقت لکھیں تو اس وقت کال آئے گی۔"),
+        ]}
+      />
+    </div>
   );
 }

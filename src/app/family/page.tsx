@@ -13,6 +13,7 @@ import { callSlots } from "@/lib/time";
 import { vapidPublicKey } from "@/lib/push";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
+import { relationLabel } from "@/lib/relations";
 
 // Private health information: never in search results.
 export const metadata: Metadata = { title: "Family · Khairiyat", robots: { index: false, follow: false } };
@@ -45,14 +46,20 @@ async function FamilyHome() {
     <>
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div className="min-w-0">
-          <p className="ui-eyebrow">{t("Family Wellbeing", "خاندان کی خیریت")}</p>
+          <p className="ui-eyebrow">{user.name ? t(`Assalam o Alaikum, ${user.name}`, `السلام علیکم، ${user.name}`) : t("Family Wellbeing", "خاندان کی خیریت")}</p>
           <h1 className="mt-1 text-3xl font-semibold text-stone-900 sm:text-4xl">{t("Your Family", "آپ کا خاندان")}</h1>
-          <p className="mt-1 truncate text-sm text-stone-500">{user.email}</p>
+          {user.name ? null : user.email === demoEmail() ? (
+            <p className="mt-1 text-sm text-stone-500">{t("Demo Family", "ڈیمو خاندان")}</p>
+          ) : (
+            <Link href="/family/settings" className="mt-1 inline-block text-sm font-semibold text-emerald-700 underline underline-offset-4">
+              {t("Add your name", "اپنا نام لکھیں")}
+            </Link>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-3">
           <Link href="/family/new" className="ui-btn ui-btn-primary">
             <Icon name="plus" className="size-4" />
-            {t("Add a parent", "والدین شامل کریں")}
+            {t("Add Family Member", "فرد شامل کریں")}
           </Link>
           <SignOutButton />
         </div>
@@ -63,13 +70,13 @@ async function FamilyHome() {
           <span className="mx-auto flex size-16 items-center justify-center rounded-full bg-sage-soft text-emerald-700">
             <Icon name="family" className="size-8" />
           </span>
-          <h2 className="mt-4 text-2xl font-semibold text-stone-900">{t("Add Your First Parent", "پہلے والدین شامل کریں")}</h2>
+          <h2 className="mt-4 text-2xl font-semibold text-stone-900">{t("Add Your First Family Member", "پہلا فرد شامل کریں")}</h2>
           <p className="mx-auto mt-2 max-w-md text-stone-600">
-            {t("Tell Khairiyat about Ammi or Abbu: their medicines and a daily call time. You'll get a link to open on their phone.", "خیریت کو امی یا ابو کے بارے میں بتائیں: ان کی دوائیاں اور روز کال کا وقت۔ پھر ان کے فون پر کھولنے کے لیے ایک لنک ملے گا۔")}
+            {t("Tell Khairiyat about anyone you care for: Ammi, Abbu, Phuppo, Appa or another relative. You'll get a link to open on their phone.", "جس کی خیریت پوچھنی ہو ان کے بارے میں بتائیں: امی، ابو، پھوپھو، آپا یا کوئی اور۔ پھر ان کے فون کے لیے ایک لنک ملے گا۔")}
           </p>
           <Link href="/family/new" className="ui-btn ui-btn-primary mt-5">
             <Icon name="plus" className="size-4" />
-            {t("Add a parent", "والدین شامل کریں")}
+            {t("Add Family Member", "فرد شامل کریں")}
           </Link>
         </section>
       ) : (
@@ -85,7 +92,7 @@ async function FamilyHome() {
                     <div className="min-w-0">
                       <h2 className="truncate text-xl font-semibold text-stone-900">{nickname}</h2>
                       <p className="truncate text-sm text-stone-600">{parent.name}</p>
-                      <p className="ui-eyebrow mt-1">{parent.gender === "female" ? t("Mother", "والدہ") : t("Father", "والد")}</p>
+                      <p className="ui-eyebrow mt-1">{relationLabel(parent.relation, parent.gender, lang)}</p>
                     </div>
                   </div>
                   <div className="mt-4 flex flex-wrap items-center gap-2">

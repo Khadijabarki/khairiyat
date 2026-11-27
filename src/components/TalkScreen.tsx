@@ -510,7 +510,7 @@ export default function TalkScreen(props: Props) {
           <button
             onClick={start}
             disabled={status === "ending" || messageBusy}
-            className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-800 ring-[10px] ring-emerald-100 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
+            className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-[#1c422e] ring-[10px] ring-emerald-100 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
           >
             {status === "done" ? t("Talk again", "پھر بات کریں") : t(...STATUS_TEXT[status === "error" ? "error" : "idle"])}
           </button>

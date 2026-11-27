@@ -1,13 +1,15 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import type { ParentFormState } from "@/app/family/actions";
 import { useLang } from "../i18n/LangProvider";
+import { MAX_RELATION, OTHER_RELATION, RELATIONS, findRelation } from "@/lib/relations";
 
 // Plain values the form starts with (a new parent, or the one being edited).
 export type ParentFormValues = {
   name: string;
   nickname: string;
+  relation: string;
   nicknameUr: string;
   gender: "female" | "male";
   childName: string;
@@ -24,6 +26,7 @@ export type ParentFormValues = {
 export const EMPTY_PARENT: ParentFormValues = {
   name: "",
   nickname: "",
+  relation: "",
   nicknameUr: "",
   gender: "female",
   childName: "",
@@ -46,13 +49,31 @@ type Props = {
   action: (state: ParentFormState, form: FormData) => Promise<ParentFormState>;
   values: ParentFormValues;
   submitLabel: string;
+  defaultChildName?: string; // the signed-in person's name, for a new family member
 };
 
-export default function ParentForm({ action, values: initialValues, submitLabel }: Props) {
+export default function ParentForm({ action, values: initialValues, submitLabel, defaultChildName = "" }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
-  const { t } = useLang();
+  const { lang, t } = useLang();
+  const startRelation = state.values?.relation ?? initialValues.relation;
+  // "Other" shows a box to write the relationship.
+  const [relationChoice, setRelationChoice] = useState(() =>
+    !startRelation ? "" : findRelation(startRelation) ? startRelation : OTHER_RELATION,
+  );
+
+  // Picking a relationship fills in the gender and a suggested way to address them.
+  function chooseRelation(select: HTMLSelectElement) {
+    setRelationChoice(select.value);
+    const relation = findRelation(select.value);
+    if (!relation || !select.form) return;
+    const field = (name: string) => select.form!.elements.namedItem(name) as HTMLInputElement;
+    field("gender").value = relation.gender;
+    const suggested = (value: string, key: "call" | "callUr") => !value || RELATIONS.some((x) => x[key] === value);
+    if (relation.call && suggested(field("nickname").value, "call")) field("nickname").value = relation.call;
+    if (relation.callUr && suggested(field("nickname_ur").value, "callUr")) field("nickname_ur").value = relation.callUr;
+  }
   // After an error, show what was typed (the server sends it back), not the starting values.
-  const values = state.values ?? initialValues;
+  const values = state.values ?? { ...initialValues, childName: initialValues.childName || defaultChildName };
   // A new key re-creates the inputs so their default values update after each submit.
   const formKey = JSON.stringify(state.values ?? null);
   const medicineRows = Array.from({ length: Math.max(MEDICINE_ROWS, values.medicines.length) }, (_, i) => values.medicines[i]);
@@ -67,16 +88,30 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
             <input id="name" name="name" required maxLength={80} defaultValue={values.name} placeholder="Zubaida Begum" className={input} />
           </div>
           <div>
-            <label htmlFor="gender" className={label}>{t("Mother or father", "والدہ یا والد")}</label>
+            <label htmlFor="relation" className={label}>{t("Relationship", "رشتہ")}</label>
+            <select id="relation" name="relation" value={relationChoice} onChange={(e) => chooseRelation(e.currentTarget)} className={input}>
+              <option value="">{t("Choose…", "چنیں…")}</option>
+              {RELATIONS.map((x) => (
+                <option key={x.id} value={x.id}>{x[lang]}</option>
+              ))}
+              <option value={OTHER_RELATION}>{t("Other (write it)", "کوئی اور (خود لکھیں)")}</option>
+            </select>
+            {relationChoice === OTHER_RELATION && (
+              <input name="relation_other" maxLength={MAX_RELATION} defaultValue={findRelation(startRelation) ? "" : startRelation} placeholder={t("e.g. Neighbour, Teacher", "مثلاً پڑوسی، استاد")} aria-label={t("Write the relationship", "رشتہ لکھیں")} className={input} />
+            )}
+          </div>
+          <div>
+            <label htmlFor="gender" className={label}>{t("Gender", "صنف")}</label>
             <select id="gender" name="gender" defaultValue={values.gender} className={input}>
-              <option value="female">{t("Mother", "والدہ")}</option>
-              <option value="male">{t("Father", "والد")}</option>
+              <option value="female">{t("Female", "خاتون")}</option>
+              <option value="male">{t("Male", "مرد")}</option>
             </select>
             <p className={hint}>{t("Khairiyat uses the right Urdu grammar for them.", "خیریت ان کے لیے درست اردو گرامر استعمال کرتی ہے۔")}</p>
           </div>
           <div>
-            <label htmlFor="nickname" className={label}>{t("What you call them", "آپ انہیں کیا کہتے ہیں")}</label>
-            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi" className={input} />
+            <label htmlFor="nickname" className={label}>{t("What do you call them?", "آپ انہیں کیا کہہ کر بلاتے ہیں؟")}</label>
+            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} />
+            <p className={hint}>{t("Khairiyat will address them by this name.", "خیریت انہیں اسی نام سے پکارے گی۔")}</p>
           </div>
           <div>
             <label htmlFor="nickname_ur" className={label}>{t("Same in Urdu (optional)", "اردو میں (اختیاری)")}</label>
@@ -96,8 +131,8 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
           <div>
             <label htmlFor="companion_gender" className={label}>{t("Khairiyat speaks like", "خیریت کس کی طرح بولے")}</label>
             <select id="companion_gender" name="companion_gender" defaultValue={values.companionGender} className={input}>
-              <option value="female">{t("A daughter (female voice)", "بیٹی کی طرح (خاتون کی آواز)")}</option>
-              <option value="male">{t("A son (male voice)", "بیٹے کی طرح (مرد کی آواز)")}</option>
+              <option value="female">{t("A woman of the family (female voice)", "گھر کی خاتون کی طرح (زنانہ آواز)")}</option>
+              <option value="male">{t("A man of the family (male voice)", "گھر کے مرد کی طرح (مردانہ آواز)")}</option>
             </select>
           </div>
           <div className="sm:col-span-2">

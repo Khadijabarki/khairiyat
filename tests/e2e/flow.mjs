@@ -125,7 +125,7 @@ try {
   await fill("#password", userA.password);
   await submit();
   ok("sign up lands on the family page", (await url()) === "/family", await url());
-  ok("new family sees the empty state", (await text()).includes("Add Your First Parent"));
+  ok("new family sees the empty state", (await text()).includes("Add Your First Family Member"));
   ok("family can turn on alerts for this device", (await text()).includes("Alerts on This Device") && (await text()).includes("Turn on alerts"));
   const session = (await send("Network.getAllCookies")).cookies.filter((c) => c.name.startsWith("sb-"));
   ok("sign-in cookie is hidden from page scripts (httpOnly)", session.length > 0 && session.every((c) => c.httpOnly));

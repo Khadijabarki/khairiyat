@@ -53,6 +53,8 @@
 :root {
   --background: #fbf8ee;
   --foreground: #2a2f27;
+  --ui-surface: #fffdf7;
+  --ui-field: #ffffff;
 }
 
 @layer base {
@@ -110,7 +112,7 @@
   }
 
   .ui-card {
-    background: #fffdf7;
+    background: var(--ui-surface);
     border: 1px solid var(--color-stone-200);
     border-radius: var(--radius-2xl);
     box-shadow: var(--shadow-soft);
@@ -160,11 +162,11 @@
     box-shadow: 0 6px 16px -8px rgb(35 83 57 / 0.7);
   }
   .ui-btn-primary:hover:not(:disabled) {
-    background: var(--color-emerald-800);
+    background: #1c422e;
   }
 
   .ui-btn-secondary {
-    background: #fffdf7;
+    background: var(--ui-surface);
     border-color: var(--color-stone-300);
     color: var(--color-stone-800);
   }
@@ -174,7 +176,7 @@
   }
 
   .ui-btn-danger {
-    background: #fff;
+    background: var(--ui-surface);
     border-color: #fda4af;
     color: #9f1239;
   }
@@ -188,7 +190,7 @@
     min-height: 2.875rem;
     border-radius: var(--radius-xl);
     border: 1px solid var(--color-stone-300);
-    background: #fff;
+    background: var(--ui-field);
     padding: 0.5rem 0.875rem;
     font-size: 1rem; /* 16px: iPhones don't zoom in on focus */
     color: var(--color-stone-900);
@@ -234,5 +236,56 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* ---------- Dark appearance (screen only, so reports always print light) ---------- */
+@media screen {
+  html[data-theme="dark"] {
+    color-scheme: dark;
+    --background: #111611;
+    --foreground: #e2e6da;
+    --ui-surface: #1a221b;
+    --ui-field: #141b15;
+
+    --color-cream: #111611;
+    --color-amber-50: #111611;
+    --color-sage-soft: #1e2a20;
+    --color-sage: #3d5240;
+
+    --color-stone-50: #151b15;
+    --color-stone-100: #222a22;
+    --color-stone-200: #2f392f;
+    --color-stone-300: #414d41;
+    --color-stone-400: #7d897a;
+    --color-stone-500: #9ca796;
+    --color-stone-600: #b7c0af;
+    --color-stone-700: #ccd3c5;
+    --color-stone-800: #e2e6da;
+    --color-stone-900: #f2f4ec;
+
+    --color-emerald-50: #18261c;
+    --color-emerald-100: #213528;
+    --color-emerald-200: #2f4b39;
+    --color-emerald-800: #b4ddc1;
+    --color-emerald-900: #d5eedc;
+  }
+  html[data-theme="dark"] :where(.bg-white) {
+    background-color: var(--ui-surface);
+  }
+  html[data-theme="dark"] [class*="bg-white/"] {
+    background-color: color-mix(in srgb, var(--ui-surface) 90%, transparent);
+  }
+  html[data-theme="dark"] :where(.text-emerald-700, .text-emerald-600),
+  html[data-theme="dark"] .ui-eyebrow {
+    color: #8fd0a6;
+  }
+  /* Red text on a dark card needs a lighter red (not on the light red boxes). */
+  html[data-theme="dark"] :where(.text-rose-700):not(.bg-white):not([class*="bg-rose"]) {
+    color: #fda4af;
+  }
+  /* A parent's QR code must stay black on white to be scanned. */
+  html[data-theme="dark"] [role="img"]:has(> svg[shape-rendering]) {
+    background: #ffffff;
   }
 }

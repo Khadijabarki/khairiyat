@@ -5,7 +5,7 @@ import type { Parent } from "../../src/lib/data";
 import { buildSystemPrompt } from "../../src/lib/prompt";
 
 const parent = (overrides: Partial<Parent> = {}): Parent => ({
-  id: "test", familyId: "f", name: "Zubaida Begum", gender: "female", nickname: "Ammi", nicknameUr: "امی",
+  id: "test", familyId: "f", name: "Zubaida Begum", gender: "female", nickname: "Ammi", relation: "", nicknameUr: "امی",
   childName: "Ali", childNameUr: "علی", childPhone: "", language: "urdu",
   medicines: [{ name: "BP ki goli", when: "subah" }], topics: ["cricket"],
   companion: { gender: "female", voice: "Sulafat" }, checkinTime: "10:00", talkToken: "demo-test",
@@ -42,6 +42,20 @@ describe("buildSystemPrompt", () => {
   it("mentions the voice message button once at the end, but not in the demo", () => {
     assert.ok(buildSystemPrompt(parent(), []).includes("paigham wala button"));
     assert.ok(!buildSystemPrompt(parent({ isDemo: true }), []).includes("paigham wala button"));
+  });
+
+  it("addresses any relative by the family's name for them, not as a parent", () => {
+    const p = buildSystemPrompt(parent({ nickname: "Phuppo", relation: "phuppo" }), []);
+    assert.ok(p.includes('Unhein HAMESHA "Phuppo" keh kar pukaro'));
+    assert.ok(p.includes("Aunt (Phuppo)"));
+    assert.ok(!p.includes("ek pyari beti"));
+    assert.ok(!p.includes("Assalam o alaikum Ammi"));
+  });
+
+  it("understands a relationship the family wrote themselves", () => {
+    const p = buildSystemPrompt(parent({ nickname: "Master Sahab", relation: "Teacher" }), []);
+    assert.ok(p.includes("Teacher"));
+    assert.ok(p.includes('"Master Sahab"'));
   });
 
   it("asks about the medicine whose time it is", () => {

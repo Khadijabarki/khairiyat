@@ -27,6 +27,7 @@ import { getRule } from "@/lib/safety";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator, type Lang, type Translate } from "@/lib/i18n";
 import SectionHeading from "@/components/ui/SectionHeading";
+import { relationLabel } from "@/lib/relations";
 
 export const metadata: Metadata = { title: "Khairiyat · Family", robots: { index: false, follow: false } };
 export const instant = false;
@@ -88,7 +89,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
         <div className="flex flex-wrap items-center gap-5 bg-gradient-to-br from-sage-soft to-transparent p-5 sm:p-6">
           <Avatar name={parent.nickname} gender={parent.gender} photoUrl={photos.urls[parent.id]} size="xl" />
           <div className="min-w-0 flex-1">
-            <p className="ui-eyebrow">{parent.gender === "female" ? t("Mother", "والدہ") : t("Father", "والد")}</p>
+            <p className="ui-eyebrow">{relationLabel(parent.relation, parent.gender, lang)}</p>
             <h1 className="text-3xl font-semibold text-stone-900">
               {nickname}
               <span className="block font-sans text-base font-normal text-stone-600">{parent.name}</span>

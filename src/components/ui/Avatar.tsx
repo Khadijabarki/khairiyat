@@ -2,8 +2,8 @@
 // their initial on a soft background (never a stock photo of a stranger).
 
 const TONES = {
-  female: "from-[#dfe9da] to-[#b9cfb4] text-emerald-900",
-  male: "from-[#e4e7d6] to-[#c3caa9] text-emerald-900",
+  female: "from-[#dfe9da] to-[#b9cfb4] text-[#163525]",
+  male: "from-[#e4e7d6] to-[#c3caa9] text-[#163525]",
 } as const;
 
 const SIZES = {

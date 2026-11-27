@@ -22,6 +22,13 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
           : t("See how your parent is doing, and manage their daily Khairiyat calls.", "والدین کا حال دیکھیں اور ان کی روز کی خیریت کال سنبھالیں۔")}
       </p>
 
+      {isSignUp && (
+        <>
+          <label htmlFor="full_name" className="mt-4 block text-sm font-medium text-stone-700">{t("Your Name", "آپ کا نام")}</label>
+          <input id="full_name" name="full_name" autoComplete="name" maxLength={60} className={inputClass} />
+        </>
+      )}
+
       <label htmlFor="email" className="mt-4 block text-sm font-medium text-stone-700">{t("Email", "ای میل")}</label>
       <input dir="ltr" id="email" name="email" type="email" autoComplete="email" required maxLength={254} defaultValue={state.email} className={inputClass} />
 

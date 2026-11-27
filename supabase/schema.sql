@@ -31,6 +31,9 @@ create table if not exists public.parents (
 );
 create index if not exists parents_family on public.parents (family_id);
 
+-- How the family member is related (e.g. mother, phuppo, or the family's own words).
+alter table public.parents add column if not exists relation text not null default '' check (char_length(relation) <= 30);
+
 -- ---------- Daily check-ins (one row per finished call) ----------
 create table if not exists public.checkins (
   id              uuid primary key default gen_random_uuid(),

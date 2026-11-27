@@ -1,16 +1,22 @@
 import type { Parent, PastCheckin } from "./data";
 import { safetyPrompt } from "./safety";
 import { callSlots, currentSlot, pakistanToday } from "./time";
+import { isElder, relationLabel } from "./relations";
 
 // Urdu words that change with gender.
 // Khairiyat talks as a daughter (female) or a son (male), and the parent is a mother or father.
 function genderWords(parent: Parent) {
   const asDaughter = parent.companion.gender === "female";
   const isMother = parent.gender === "female";
+  // To parents and grandparents Khairiyat speaks like a daughter or son; to anyone else,
+  // like a caring member of the family.
+  const elder = isElder(parent.relation);
   return {
-    role: asDaughter ? "ek pyari beti" : "ek pyara beta",
-    roleShort: asDaughter ? "beti" : "beta",
-    parentRole: isMother ? "maa" : "baap",
+    role: elder
+      ? asDaughter ? "ek pyari beti" : "ek pyara beta"
+      : asDaughter ? "ghar ki ek apni, khayal rakhne wali fard" : "ghar ka ek apna, khayal rakhne wala fard",
+    roleShort: elder ? (asDaughter ? "beti" : "beta") : asDaughter ? "khatoon" : "mard",
+    parentRole: elder ? (isMother ? "maa" : "baap") : `rishtedar (${relationLabel(parent.relation, parent.gender, "en")})`,
     // Khairiyat's own verbs: "main bata rahi hoon" (daughter) vs "main bata raha hoon" (son)
     rahi: asDaughter ? "rahi" : "raha",
     dungi: asDaughter ? "dungi" : "dunga",
@@ -73,6 +79,10 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[], time = 
       ? recent.map((c) => `- ${c.date}: ${c.summary}`).join("\n")
       : "- Abhi tak koi pichli baat-cheet nahi hui. Yeh pehli baat-cheet hai.";
 
+  const relationLine = isElder(parent.relation)
+    ? `${n} ke ghar wale ${parent.childName} door rehte hain; unhon ne tumhein ${n} ka haal poochne ke liye rakha hai.`
+    : `Rishta: ${n}, ${parent.childName} ki family mein ${relationLabel(parent.relation, parent.gender, "en")} hain.`;
+
   // If the family set medicine times, say exactly which medicines belong to this conversation.
   const slot = currentSlot(callSlots(parent.checkinTime, parent.medicines), pakistanToday(time).minutesNow);
   let medicinesNow = "";
@@ -108,7 +118,9 @@ Abhi Pakistan mein asal waqt hai: ${now}. Yahi sahi waqt hai.
 TUM KAUN HO
 Tum "Khairiyat" ho. Tum ${n} (${parent.name}) se roz unka haal ${g.poochti} ho, bilkul ${g.role} ki tarah.
 Tum ${g.roleShort} ho, is liye apne liye hamesha "${g.rahi} hoon", "${g.dungi}", "${g.deti} hoon" jaise lafz bolo.
-${n} ke bachay ka naam ${parent.childName} hai. ${parent.childName} door rehte hain aur tumhari baat-cheet ka khulasa unhein bheja jata hai.
+${relationLine}
+Tumhari baat-cheet ka khulasa ${parent.childName} ko bheja jata hai.
+Unhein HAMESHA "${n}" keh kar pukaro${isElder(parent.relation) ? "" : '. "Ammi", "Abbu" ya koi aur rishta apni taraf se KABHI mat lagao'}.
 
 ZABAAN AUR LEHJA (asal insaan ki tarah, robot ki tarah nahi)
 - Pakistani ghar wali Urdu bolo, jaise ${g.roleShort} apne ${g.parentRole} se phone par baat karta/karti hai.
@@ -134,7 +146,7 @@ BAAT-CHEET KA TAREEQA (checklist ki tarah nahi, qudrati guftagu)
 5. 3 se 4 minute mein pyar se khatam karo: "Acha ${n}, apna khayal rakhiyega. Main ${parent.childName} ko bata ${g.dungi} ke aap theek hain. Allah Hafiz."${messageHint}
 
 MISAAL (sirf andaz samajhne ke liye, yeh lafz copy mat karo):
-${n}: "Bas beta, raat ko neend theek nahi aayi."
+${n}: "Bas ${isElder(parent.relation) ? "beta, " : ""}raat ko neend theek nahi aayi."
 Tum: "Uff, phir to aap ${g.thaki}. Kya baat thi, koi takleef thi ya bas neend nahi aayi?"
 ${n}: "Ghutnon mein dard tha thora."
 Tum: "Acha... abhi kaisa hai dard? Pehle se kam hai?"

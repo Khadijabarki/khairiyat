@@ -24,6 +24,7 @@ import { deletePhoto, savePhoto } from "@/lib/photos";
 import { MAX_PHOTO_BYTES, looksLikeJpeg } from "@/lib/photo-rules";
 import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
+import { MAX_RELATION, OTHER_RELATION, findRelation } from "@/lib/relations";
 
 // On an error, the typed-in values are sent back so the form can show them again
 // (React clears a form after it is submitted).
@@ -41,6 +42,17 @@ function text(form: FormData, key: string, max: number): string {
   return String(form.get(key) ?? "").trim().slice(0, max);
 }
 
+// The chosen relationship, or the family's own words when they picked "Other".
+function relationFrom(form: FormData): string {
+  const chosen = text(form, "relation", MAX_RELATION);
+  if (chosen === OTHER_RELATION) return text(form, "relation_other", MAX_RELATION);
+  return findRelation(chosen) ? chosen : "";
+}
+
+// True if the database doesn't have the new column yet (the SQL hasn't been run).
+const missingRelationColumn = (error: { code?: string; message?: string } | null) =>
+  error?.code === "PGRST204" && Boolean(error.message?.includes("relation"));
+
 // What the family typed, for showing the form again after an error.
 function echoValues(form: FormData): ParentFormValues {
   const medicines: { name: string; when: string; time?: string }[] = [];
@@ -53,6 +65,7 @@ function echoValues(form: FormData): ParentFormValues {
   return {
     name: text(form, "name", 80),
     nickname: text(form, "nickname", 40),
+    relation: relationFrom(form),
     nicknameUr: text(form, "nickname_ur", 40),
     gender: form.get("gender") === "male" ? "male" : "female",
     childName: text(form, "child_name", 40),
@@ -73,6 +86,7 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
   const nickname = text(form, "nickname", 40);
   const childName = text(form, "child_name", 40);
   if (!name || !nickname || !childName) return { error: "Please fill in the parent's name, what you call them, and your name." };
+  const relation = relationFrom(form);
 
   const gender = form.get("gender") === "male" ? "male" : "female";
   const companionGender = form.get("companion_gender") === "male" ? "male" : "female";
@@ -107,6 +121,7 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
     row: {
       name,
       nickname,
+      relation,
       nickname_ur: text(form, "nickname_ur", 40),
       gender,
       language,
@@ -134,11 +149,13 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
   const { count } = await supabase.from("parents").select("id", { count: "exact", head: true }).eq("family_id", user.id);
   if ((count ?? 0) >= 10) return { error: await say("A family can add up to 10 parents."), values: echoValues(form) };
 
-  const { data, error } = await supabase
-    .from("parents")
-    .insert({ ...parsed.row, family_id: user.id, talk_token: newTalkToken() })
-    .select("id")
-    .single();
+  const insert = (row: Record<string, unknown>) =>
+    supabase.from("parents").insert({ ...row, family_id: user.id, talk_token: newTalkToken() }).select("id").single();
+  let { data, error } = await insert(parsed.row);
+  if (missingRelationColumn(error)) {
+    const { relation: _unused, ...rest } = parsed.row;
+    ({ data, error } = await insert(rest));
+  }
   if (error || !data) {
     console.error("createParent: database error", error?.code ?? "");
     return { error: await say("Could not save. Please try again."), values: echoValues(form) };
@@ -157,7 +174,12 @@ export async function updateParent(parentId: string, _prev: ParentFormState, for
   if ("error" in parsed) return { error: await say(parsed.error), values: echoValues(form) };
 
   const supabase = db();
-  const { error } = await supabase!.from("parents").update(parsed.row).eq("id", parent.id).eq("family_id", user.id);
+  const update = (row: Record<string, unknown>) => supabase!.from("parents").update(row).eq("id", parent.id).eq("family_id", user.id);
+  let { error } = await update(parsed.row);
+  if (missingRelationColumn(error)) {
+    const { relation: _unused, ...rest } = parsed.row;
+    ({ error } = await update(rest));
+  }
   if (error) {
     console.error("updateParent: database error", error.code);
     return { error: await say("Could not save. Please try again."), values: echoValues(form) };

@@ -57,7 +57,7 @@ export default function IncomingCall({ childName, onAnswer, onLater }: Props) {
       dir={ur ? "rtl" : "ltr"}
       role="alertdialog"
       aria-label={t("Khairiyat is calling", "خیریت کال کر رہی ہے")}
-      className={`${ur ? "font-urdu " : ""}fixed inset-0 z-50 flex flex-col items-center justify-between bg-gradient-to-b from-emerald-800 to-emerald-950 px-6 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-white`}
+      className={`${ur ? "font-urdu " : ""}fixed inset-0 z-50 flex flex-col items-center justify-between bg-gradient-to-b from-[#1c422e] to-[#0b1f15] px-6 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-white`}
     >
       <div className="text-center">
         <p className="text-[clamp(1.1rem,5vw,1.4rem)] leading-[2] text-emerald-200">{t("Incoming call…", "کال آ رہی ہے…")}</p>

@@ -3,6 +3,9 @@ import "server-only";
 import { getLang } from "./i18n-server";
 
 export const SERVER_MESSAGES_UR: Record<string, string> = {
+  "The demo account can't be changed.": "ڈیمو اکاؤنٹ بدلا نہیں جا سکتا۔",
+  "Please write your name.": "اپنا نام لکھیں۔",
+  "Your name is saved.": "آپ کا نام محفوظ ہو گیا۔",
   "Photos can't be changed in the shared demo.": "مشترکہ ڈیمو میں تصویر نہیں بدلی جا سکتی۔",
   "Please choose a smaller picture.": "چھوٹی تصویر چنیں۔",
   "Please choose a picture file.": "تصویر کی فائل چنیں۔",

@@ -11,7 +11,9 @@ import { redirect } from "next/navigation";
 import { SESSION_COOKIE_OPTIONS } from "./session-cookie";
 import { connection } from "next/server";
 
-export type FamilyUser = { id: string; email: string };
+export const MAX_NAME = 60;
+
+export type FamilyUser = { id: string; email: string; name: string };
 
 function authSettings() {
   const url = process.env.SUPABASE_URL?.trim();
@@ -48,7 +50,8 @@ export async function currentUser(): Promise<FamilyUser | null> {
     const supabase = await authClient();
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;
-    return { id: data.user.id, email: data.user.email ?? "" };
+    const name = data.user.user_metadata?.full_name;
+    return { id: data.user.id, email: data.user.email ?? "", name: typeof name === "string" ? name.slice(0, MAX_NAME) : "" };
   } catch {
     return null;
   }

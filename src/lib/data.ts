@@ -22,7 +22,8 @@ export type Parent = {
   familyId: string;
   name: string; // full name, e.g. "Zubaida Begum"
   gender: Gender; // decides Urdu grammar: "aap leti hain" vs "aap lete hain"
-  nickname: string; // what the family calls them, e.g. "Ammi" or "Abbu"
+  nickname: string; // what the family calls them, e.g. "Ammi", "Abbu" or "Phuppo"
+  relation: string; // how they are related (see relations.ts); empty for older entries
   nicknameUr: string; // the same in Urdu script, for the talk screen, e.g. "امی"
   childName: string; // the son/daughter who gets the summaries, e.g. "Ali"
   childNameUr: string; // e.g. "علی"
@@ -55,6 +56,7 @@ type ParentRow = {
   name: string;
   nickname: string;
   nickname_ur: string;
+  relation?: string | null; // missing until supabase/schema.sql has added the column
   gender: string;
   language: string;
   child_name: string;
@@ -78,6 +80,7 @@ function toParent(row: ParentRow): Parent {
     name: row.name,
     gender: row.gender === "male" ? "male" : "female",
     nickname: row.nickname,
+    relation: row.relation ?? "",
     nicknameUr: row.nickname_ur || row.nickname,
     childName: row.child_name,
     childNameUr: row.child_name_ur || row.child_name,
