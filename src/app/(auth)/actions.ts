@@ -8,6 +8,7 @@ import { authClient, currentUser, demoEmail } from "@/lib/auth";
 import { removeFamilyDevices } from "@/lib/family-devices";
 import { FAMILY_DEVICE_COOKIE } from "@/lib/session-cookie";
 import { ipFromHeaders, rateLimit } from "@/lib/security";
+import { say } from "@/lib/server-messages";
 
 // email is sent back after an error so the form can show it again (never the password).
 export type AuthState = { error?: string; info?: string; email?: string };
@@ -26,44 +27,44 @@ async function allowAttempt(kind: string): Promise<boolean> {
 }
 
 export async function signUp(_prev: AuthState, form: FormData): Promise<AuthState> {
-  if (!(await allowAttempt("signup"))) return { error: "Too many attempts. Please wait a few minutes." };
+  if (!(await allowAttempt("signup"))) return { error: await say("Too many attempts. Please wait a few minutes.") };
   const { email, password } = readCredentials(form);
-  if (!EMAIL_PATTERN.test(email)) return { error: "Please enter a valid email address.", email };
-  if (password.length < 8 || password.length > 72) return { error: "Password must be 8 to 72 characters.", email };
+  if (!EMAIL_PATTERN.test(email)) return { error: await say("Please enter a valid email address."), email };
+  if (password.length < 8 || password.length > 72) return { error: await say("Password must be 8 to 72 characters."), email };
 
   const supabase = await authClient();
   const { data, error } = await supabase.auth.signUp({ email, password });
   if (error) {
     // Don't reveal whether an email is already registered.
     console.error("signUp: failed", error.status ?? "");
-    return { error: "Could not create the account. Try another email or sign in.", email };
+    return { error: await say("Could not create the account. Try another email or sign in."), email };
   }
   // If email confirmation is switched on in Supabase, there is no session yet.
-  if (!data.session) return { info: "Account created. Please confirm your email, then sign in." };
+  if (!data.session) return { info: await say("Account created. Please confirm your email, then sign in.") };
   redirect("/family");
 }
 
 export async function signIn(_prev: AuthState, form: FormData): Promise<AuthState> {
-  if (!(await allowAttempt("signin"))) return { error: "Too many attempts. Please wait a few minutes." };
+  if (!(await allowAttempt("signin"))) return { error: await say("Too many attempts. Please wait a few minutes.") };
   const { email, password } = readCredentials(form);
-  if (!email || !password) return { error: "Please enter your email and password.", email };
+  if (!email || !password) return { error: await say("Please enter your email and password."), email };
 
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   // One message for every failure, so attackers can't tell which emails exist.
-  if (error) return { error: "Email or password is not correct.", email };
+  if (error) return { error: await say("Email or password is not correct."), email };
   redirect("/family");
 }
 
 // One click for judges: signs in to the shared demo account (sample parents and data).
 export async function openDemo(): Promise<AuthState> {
-  if (!(await allowAttempt("demo"))) return { error: "Too many attempts. Please wait a few minutes." };
+  if (!(await allowAttempt("demo"))) return { error: await say("Too many attempts. Please wait a few minutes.") };
   const password = process.env.DEMO_PASSWORD?.trim();
-  if (!password) return { error: "The demo is not set up on this server." };
+  if (!password) return { error: await say("The demo is not set up on this server.") };
 
   const supabase = await authClient();
   const { error } = await supabase.auth.signInWithPassword({ email: demoEmail(), password });
-  if (error) return { error: "The demo is not available right now." };
+  if (error) return { error: await say("The demo is not available right now.") };
   redirect("/family");
 }
 

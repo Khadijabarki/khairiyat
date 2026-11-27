@@ -17,3 +17,12 @@ body {
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
 }
+
+/* Family pages in Urdu: Nastaliq script, with the extra line height it needs.
+   Latin text (names, emails, AI summaries) falls back to the normal font. */
+[data-lang="ur"] {
+  font-family: var(--font-nastaliq), var(--font-geist-sans), sans-serif;
+}
+[data-lang="ur"] :where(h1, h2, h3, p, li, a, button, label, legend, span, td, th, option, select, input, figcaption, div) {
+  line-height: 2.1;
+}

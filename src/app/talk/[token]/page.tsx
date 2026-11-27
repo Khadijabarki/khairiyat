@@ -1,7 +1,10 @@
 import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
+import { cookies } from "next/headers";
+import LangProvider from "@/components/i18n/LangProvider";
 import TalkScreen from "@/components/TalkScreen";
+import { TALK_LANG_COOKIE, readLang } from "@/lib/i18n";
 import { vapidPublicKey } from "@/lib/push";
 import { getParentByTalkToken } from "@/lib/data";
 import { isValidTalkToken } from "@/lib/security";
@@ -38,8 +41,10 @@ async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">
   const { token } = await params;
   const parent = await getParentByTalkToken(token);
   if (!parent) notFound();
+  const lang = readLang((await cookies()).get(TALK_LANG_COOKIE)?.value, "ur");
 
   return (
+    <LangProvider lang={lang}>
     <TalkScreen
       talkToken={parent.talkToken}
       nickname={parent.nickname}
@@ -48,6 +53,9 @@ async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">
       childPhone={parent.childPhone}
       vapidPublicKey={vapidPublicKey()}
       canSendMessage={!parent.isDemo}
+      nameEn={parent.nickname}
+      childNameEn={parent.childName}
     />
+    </LangProvider>
   );
 }

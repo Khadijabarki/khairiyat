@@ -5,6 +5,7 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { removeVoiceMessage, sendVoiceMessage } from "@/app/family/actions";
 import { MAX_VOICE_BYTES, MAX_VOICE_SECONDS } from "@/lib/voice-rules";
+import { useLang } from "../i18n/LangProvider";
 
 type Recording = { blob: Blob; url: string; seconds: number };
 
@@ -17,6 +18,7 @@ type Props = {
 };
 
 export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
+  const { t } = useLang();
   const [recording, setRecording] = useState(false);
   const [elapsed, setElapsed] = useState(0);
   const [result, setResult] = useState<Recording | null>(null);
@@ -55,7 +57,7 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
     setProblem("");
     try {
       const mimeType = RECORDING_TYPES.find((t) => window.MediaRecorder?.isTypeSupported(t));
-      if (!mimeType) return setProblem("This browser can't record audio. Try Chrome.");
+      if (!mimeType) return setProblem(t("This browser can't record audio. Try Chrome.", "اس براؤزر پر ریکارڈنگ نہیں ہو سکتی۔ Chrome استعمال کریں۔"));
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const release = () => stream.getTracks().forEach((t) => t.stop());
       if (!mountedRef.current) return release();
@@ -72,7 +74,7 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
         setRecording(false);
         const blob = new Blob(chunks, { type: recorder.mimeType || mimeType });
         const seconds = Math.min(MAX_VOICE_SECONDS, Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
-        if (!blob.size || blob.size > MAX_VOICE_BYTES) return setProblem("The recording didn't work. Please try again.");
+        if (!blob.size || blob.size > MAX_VOICE_BYTES) return setProblem(t("The recording didn't work. Please try again.", "ریکارڈنگ نہیں ہو سکی۔ دوبارہ کوشش کریں۔"));
         setResult({ blob, url: URL.createObjectURL(blob), seconds });
       };
       recorderRef.current = recorder;
@@ -86,7 +88,7 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
         if (s >= MAX_VOICE_SECONDS) stop();
       }, 500);
     } catch {
-      setProblem("Allow the microphone for this site, then try again.");
+      setProblem(t("Allow the microphone for this site, then try again.", "اس سائٹ کو مائیک کی اجازت دیں، پھر کوشش کریں۔"));
     } finally {
       startingRef.current = false;
     }
@@ -101,9 +103,9 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
       try {
         const { ok, error } = await sendVoiceMessage(parentId, form);
         if (ok) setResult(null);
-        setProblem(ok ? "" : (error ?? "Could not send. Please try again."));
+        setProblem(ok ? "" : (error ?? t("Could not send. Please try again.", "بھیجا نہیں جا سکا۔ دوبارہ کوشش کریں۔")));
       } catch {
-        setProblem("Could not send. Check the internet and try again.");
+        setProblem(t("Could not send. Check the internet and try again.", "بھیجا نہیں جا سکا۔ انٹرنیٹ دیکھ کر دوبارہ کوشش کریں۔"));
       }
     });
   }
@@ -113,24 +115,36 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
 
   return (
     <div className="mt-3 space-y-3">
-      {result && <audio controls src={result.url} className="w-full max-w-sm" aria-label="Your recording" />}
+      {result && <audio controls src={result.url} className="w-full max-w-sm" aria-label={t("Your recording", "آپ کی ریکارڈنگ")} />}
       <div className="flex flex-wrap items-center gap-4">
         {recording ? (
           <button type="button" onClick={stop} className="rounded-xl bg-rose-600 px-4 py-2 text-sm font-medium text-white hover:bg-rose-700">
-            ■ Stop ({elapsed}s of {MAX_VOICE_SECONDS}s)
+            ■ {t("Stop", "روکیں")} <bdi dir="ltr">({elapsed}s / {MAX_VOICE_SECONDS}s)</bdi>
           </button>
         ) : result ? (
           <>
             <button type="button" onClick={send} disabled={busy} className={primary}>
-              {busy ? "Sending…" : `Send to ${nickname}`}
+              {busy ? t("Sending…", "بھیجا جا رہا ہے…") : t(`Send to ${nickname}`, `${nickname} کو بھیجیں`)}
             </button>
             <button type="button" onClick={record} disabled={busy} className={secondary}>
-              Record again
+              {t("Record again", "دوبارہ ریکارڈ کریں")}
+            </button>
+            {/* Not happy with it: throw the recording away without sending. */}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                setResult(null);
+                setProblem("");
+              }}
+              className="text-sm font-medium text-rose-700 underline-offset-2 hover:underline disabled:opacity-60"
+            >
+              🗑 {t("Delete", "حذف کریں")}
             </button>
           </>
         ) : (
           <button type="button" onClick={record} disabled={busy} className={primary}>
-            🎙 Record a message
+            🎙 {t("Record a message", "پیغام ریکارڈ کریں")}
           </button>
         )}
         {waiting && !recording && !result && (
@@ -140,7 +154,7 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
             onClick={() => startTransition(() => removeVoiceMessage(parentId))}
             className={secondary}
           >
-            Delete the waiting message
+            {t("Delete the waiting message", "انتظار والا پیغام حذف کریں")}
           </button>
         )}
       </div>

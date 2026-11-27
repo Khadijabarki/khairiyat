@@ -4,6 +4,7 @@
 // unanswered-call warnings as notifications, even when the dashboard is closed.
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { disableFamilyAlerts, enableFamilyAlerts } from "@/app/family/actions";
+import { useLang } from "../i18n/LangProvider";
 
 type State = "checking" | "off" | "on" | "busy" | "blocked" | "failed";
 
@@ -36,6 +37,7 @@ const writeFlag = (on: boolean) => {
 };
 
 export default function FamilyAlerts({ vapidPublicKey, isDemo }: { vapidPublicKey: string; isDemo: boolean }) {
+  const { t } = useLang();
   const supported = useSyncExternalStore(noSubscribe, supportsPush, () => false);
   const [state, setState] = useState<State>("checking");
 
@@ -84,25 +86,25 @@ export default function FamilyAlerts({ vapidPublicKey, isDemo }: { vapidPublicKe
   }
 
   let text: string;
-  if (isDemo) text = "Alerts are switched off in the shared demo. Create your own account to get them on your phone.";
-  else if (!supported) text = "This browser can't receive alerts. Try Chrome on Android or on a computer.";
-  else if (state === "on") text = "✓ This device gets emergencies, daily summaries and unanswered calls.";
-  else if (state === "blocked") text = "Notifications are blocked. Allow them for this site in your browser settings, then reload.";
-  else if (state === "failed") text = "Couldn't turn alerts on. Please try again.";
-  else text = "Get emergencies, daily summaries and unanswered calls as notifications on this device.";
+  if (isDemo) text = t("Alerts are switched off in the shared demo. Create your own account to get them on your phone.", "مشترکہ ڈیمو میں الرٹ بند ہیں۔ اپنے فون پر الرٹ کے لیے اپنا اکاؤنٹ بنائیں۔");
+  else if (!supported) text = t("This browser can't receive alerts. Try Chrome on Android or on a computer.", "اس براؤزر پر الرٹ نہیں آ سکتے۔ اینڈرائیڈ یا کمپیوٹر پر Chrome استعمال کریں۔");
+  else if (state === "on") text = t("✓ This device gets emergencies, daily summaries and unanswered calls.", "✓ اس ڈیوائس پر ایمرجنسی، روز کا خلاصہ اور جواب نہ ملنے کی اطلاع آئے گی۔");
+  else if (state === "blocked") text = t("Notifications are blocked. Allow them for this site in your browser settings, then reload.", "نوٹیفکیشن بند ہیں۔ براؤزر کی سیٹنگز میں اس سائٹ کی اجازت دیں، پھر صفحہ دوبارہ کھولیں۔");
+  else if (state === "failed") text = t("Couldn't turn alerts on. Please try again.", "الرٹ آن نہیں ہو سکے۔ دوبارہ کوشش کریں۔");
+  else text = t("Get emergencies, daily summaries and unanswered calls as notifications on this device.", "ایمرجنسی، روز کا خلاصہ اور جواب نہ ملنے کی اطلاع اسی ڈیوائس پر پائیں۔");
 
   const canToggle = !isDemo && supported && Boolean(vapidPublicKey) && state !== "blocked" && state !== "checking";
 
   return (
     <section className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4">
       <div className="min-w-0">
-        <h2 className="font-semibold text-stone-900">🔔 Alerts on this device</h2>
+        <h2 className="font-semibold text-stone-900">🔔 {t("Alerts on this device", "اس ڈیوائس پر الرٹ")}</h2>
         <p role="status" className="text-sm text-stone-600">{text}</p>
       </div>
       {canToggle &&
         (state === "on" ? (
           <button type="button" onClick={turnOff} className="text-sm font-medium text-stone-600 underline-offset-2 hover:underline">
-            Turn off
+            {t("Turn off", "بند کریں")}
           </button>
         ) : (
           <button
@@ -111,7 +113,7 @@ export default function FamilyAlerts({ vapidPublicKey, isDemo }: { vapidPublicKe
             disabled={state === "busy"}
             className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
           >
-            {state === "busy" ? "Please wait…" : "Turn on alerts"}
+            {state === "busy" ? t("Please wait…", "انتظار کریں…") : t("Turn on alerts", "الرٹ آن کریں")}
           </button>
         ))}
     </section>

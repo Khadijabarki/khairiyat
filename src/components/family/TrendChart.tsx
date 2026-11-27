@@ -5,6 +5,8 @@
 // Plain SVG, no chart library. Hovering (or tapping) a point shows its exact value.
 // Colours were checked with the dataviz palette validator (colourblind-safe).
 
+import { getT } from "@/lib/i18n-server";
+
 export type TrendPoint = { label: string; value: number | null };
 
 type Props = {
@@ -20,7 +22,8 @@ const W = 300;
 const H = 130;
 const PAD = { top: 16, right: 14, bottom: 26, left: 12 };
 
-export default function TrendChart({ title, color, points, min, max, note }: Props) {
+export default async function TrendChart({ title, color, points, min, max, note }: Props) {
+  const t = await getT();
   const innerW = W - PAD.left - PAD.right;
   const innerH = H - PAD.top - PAD.bottom;
   const x = (i: number) => PAD.left + (points.length <= 1 ? innerW / 2 : (i * innerW) / (points.length - 1));
@@ -42,11 +45,11 @@ export default function TrendChart({ title, color, points, min, max, note }: Pro
       <figcaption className="flex items-baseline justify-between gap-2">
         <span className="font-semibold text-stone-900">{title}</span>
         <span className="text-sm text-stone-600">
-          Latest: <span className="font-semibold text-stone-900">{latest ? latest.value : "–"}</span>
+          {t("Latest:", "تازہ:")} <span className="font-semibold text-stone-900">{latest ? latest.value : "–"}</span>
         </span>
       </figcaption>
 
-      <svg viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label={`${title}, last 7 days`}>
+      <svg direction="ltr" viewBox={`0 0 ${W} ${H}`} className="mt-2 w-full" role="img" aria-label={`${title}, ${t("last 7 days", "پچھلے 7 دن")}`}>
         {/* Recessive guide lines at the top and bottom of the scale */}
         {[min, max].map((v) => (
           <g key={v}>

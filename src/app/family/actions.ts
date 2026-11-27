@@ -19,6 +19,8 @@ import { deleteVoice, saveVoice } from "@/lib/voice";
 import { MAX_VOICE_BYTES, looksLikeAudio, voiceSeconds, voiceType } from "@/lib/voice-rules";
 
 import type { ParentFormValues } from "@/components/family/ParentForm";
+import { say } from "@/lib/server-messages";
+import { getLang } from "@/lib/i18n-server";
 
 // On an error, the typed-in values are sent back so the form can show them again
 // (React clears a form after it is submitted).
@@ -118,14 +120,14 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
 export async function createParent(_prev: ParentFormState, form: FormData): Promise<ParentFormState> {
   const user = await requireUser();
   const parsed = parseParentForm(form);
-  if ("error" in parsed) return { error: parsed.error, values: echoValues(form) };
+  if ("error" in parsed) return { error: await say(parsed.error), values: echoValues(form) };
 
   const supabase = db();
-  if (!supabase) return { error: "The database is not available." };
+  if (!supabase) return { error: await say("The database is not available.") };
 
   // A simple limit so one account can't fill the database.
   const { count } = await supabase.from("parents").select("id", { count: "exact", head: true }).eq("family_id", user.id);
-  if ((count ?? 0) >= 10) return { error: "A family can add up to 10 parents.", values: echoValues(form) };
+  if ((count ?? 0) >= 10) return { error: await say("A family can add up to 10 parents."), values: echoValues(form) };
 
   const { data, error } = await supabase
     .from("parents")
@@ -134,7 +136,7 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
     .single();
   if (error || !data) {
     console.error("createParent: database error", error?.code ?? "");
-    return { error: "Could not save. Please try again.", values: echoValues(form) };
+    return { error: await say("Could not save. Please try again."), values: echoValues(form) };
   }
   revalidatePath("/family");
   redirect(`/family/${data.id}?added=1`);
@@ -143,17 +145,17 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
 export async function updateParent(parentId: string, _prev: ParentFormState, form: FormData): Promise<ParentFormState> {
   const user = await requireUser();
   const parent = await getFamilyParent(user.id, parentId); // ownership check
-  if (!parent) return { error: "Not found." };
-  if (parent.isDemo) return { error: "The demo parents can't be changed. Create your own account to add your parents." };
+  if (!parent) return { error: await say("Not found.") };
+  if (parent.isDemo) return { error: await say("The demo parents can't be changed. Create your own account to add your parents.") };
 
   const parsed = parseParentForm(form);
-  if ("error" in parsed) return { error: parsed.error, values: echoValues(form) };
+  if ("error" in parsed) return { error: await say(parsed.error), values: echoValues(form) };
 
   const supabase = db();
   const { error } = await supabase!.from("parents").update(parsed.row).eq("id", parent.id).eq("family_id", user.id);
   if (error) {
     console.error("updateParent: database error", error.code);
-    return { error: "Could not save. Please try again.", values: echoValues(form) };
+    return { error: await say("Could not save. Please try again."), values: echoValues(form) };
   }
   revalidatePath(`/family/${parent.id}`);
   redirect(`/family/${parent.id}`);
@@ -202,40 +204,52 @@ export type CallNowState = { message?: string; ok?: boolean };
 export async function callNow(parentId: string, _prev: CallNowState): Promise<CallNowState> {
   const user = await requireUser();
   const parent = await getFamilyParent(user.id, parentId); // ownership check
-  if (!parent) return { message: "Not found." };
+  if (!parent) return { message: await say("Not found.") };
   // At most one call a minute per parent, so a phone can't be flooded with calls.
-  if (!rateLimit(`callnow:${parent.id}`, 1, 60 * 1000)) return { message: "Please wait a minute before calling again." };
+  if (!rateLimit(`callnow:${parent.id}`, 1, 60 * 1000)) return { message: await say("Please wait a minute before calling again.") };
   if ((await deviceCount(parent.id)) === 0) {
-    return { message: `${parent.nickname}'s phone isn't set up for calls yet. Open their link and tap "allow calls".` };
+    return {
+      message:
+        (await getLang()) === "ur"
+          ? `${parent.nicknameUr} کا فون ابھی کال کے لیے تیار نہیں۔ ان کا لنک کھول کر کال کی اجازت دیں۔`
+          : `${parent.nickname}'s phone isn't set up for calls yet. Open their link and tap "allow calls".`,
+    };
   }
   const call = await ringParent(parent, "manual");
   revalidatePath(`/family/${parent.id}`);
-  if (!call) return { message: "Could not place the call. Please try again." };
-  if (call.status === "failed") return { message: `Couldn't reach ${parent.nickname}'s phone. Open their link again to refresh it.` };
-  return { ok: true, message: `Calling ${parent.nickname}… their phone is ringing.` };
+  if (!call) return { message: await say("Could not place the call. Please try again.") };
+  const ur = (await getLang()) === "ur";
+  if (call.status === "failed") {
+    return {
+      message: ur
+        ? `${parent.nicknameUr} کے فون تک کال نہیں پہنچی۔ ان کا لنک دوبارہ کھولیں۔`
+        : `Couldn't reach ${parent.nickname}'s phone. Open their link again to refresh it.`,
+    };
+  }
+  return { ok: true, message: ur ? `${parent.nicknameUr} کو کال جا رہی ہے…` : `Calling ${parent.nickname}… their phone is ringing.` };
 }
 
 // A voice message from the family, played to the parent at the start of their next conversation.
 export async function sendVoiceMessage(parentId: string, form: FormData): Promise<{ ok: boolean; error?: string }> {
   const user = await requireUser();
   const parent = await getFamilyParent(user.id, parentId); // ownership check
-  if (!parent) return { ok: false, error: "Not found." };
+  if (!parent) return { ok: false, error: await say("Not found.") };
   // The demo is shared by everyone: strangers must not leave recordings for each other.
-  if (parent.isDemo) return { ok: false, error: "Voice messages are switched off in the shared demo." };
+  if (parent.isDemo) return { ok: false, error: await say("Voice messages are switched off in the shared demo.") };
   if (!rateLimit(`voicemessage:${user.id}`, 10, 10 * 60 * 1000)) {
-    return { ok: false, error: "Please wait a few minutes before sending another message." };
+    return { ok: false, error: await say("Please wait a few minutes before sending another message.") };
   }
 
   const file = form.get("audio");
   const seconds = voiceSeconds(form.get("seconds"));
   if (!(file instanceof File) || !seconds || file.size === 0 || file.size > MAX_VOICE_BYTES) {
-    return { ok: false, error: "The recording is empty or too long. Please record again." };
+    return { ok: false, error: await say("The recording is empty or too long. Please record again.") };
   }
   const type = voiceType(file.type);
   const bytes = new Uint8Array(await file.arrayBuffer());
-  if (!type || !looksLikeAudio(bytes, type)) return { ok: false, error: "This browser's recording format isn't supported." };
+  if (!type || !looksLikeAudio(bytes, type)) return { ok: false, error: await say("This browser's recording format isn't supported.") };
 
-  if (!(await saveVoice(parent.id, type, bytes, seconds))) return { ok: false, error: "Could not save. Please try again." };
+  if (!(await saveVoice(parent.id, type, bytes, seconds))) return { ok: false, error: await say("Could not save. Please try again.") };
   revalidatePath(`/family/${parent.id}`);
   return { ok: true };
 }

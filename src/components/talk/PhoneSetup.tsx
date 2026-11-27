@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useSyncExternalStore } from "react";
+import { useLang } from "../i18n/LangProvider";
 
 // One-time setup on the parent's phone, shown on their talk screen until it's done:
 // 1. Install Khairiyat on the home screen (an app icon that opens straight to this screen).
@@ -48,6 +49,7 @@ const supportsPush = () => "serviceWorker" in navigator && "PushManager" in wind
 const currentPermission = (): NotificationPermission => ("Notification" in window ? Notification.permission : "default");
 
 export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: string; vapidPublicKey: string }) {
+  const { t } = useLang();
   const [installPrompt, setInstallPrompt] = useState<InstallPrompt | null>(null);
   const installed = useSyncExternalStore(subscribeStandalone, isStandalone, () => false);
   const isIos = useSyncExternalStore(noSubscribe, isIosDevice, () => false);
@@ -58,7 +60,7 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
   const permission = askedPermission ?? browserPermission;
   const [ready, setReady] = useState(false); // this phone can receive calls
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState("");
+  const [problem, setProblem] = useState<[en: string, ur: string] | null>(null);
 
   useEffect(() => {
     const onInstallPrompt = (e: Event) => {
@@ -93,7 +95,7 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
 
   async function allowCalls() {
     setBusy(true);
-    setProblem("");
+    setProblem(null);
     try {
       const result = await Notification.requestPermission();
       setAskedPermission(result);
@@ -103,9 +105,9 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
         (await registration.pushManager.getSubscription()) ??
         (await registration.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(vapidPublicKey) }));
       if (await saveSubscription(talkToken, subscription)) setReady(true);
-      else setProblem("ابھی محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔");
+      else setProblem(["Could not save yet. Please try again.", "ابھی محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔"]);
     } catch {
-      setProblem("یہ فون ابھی کالز کے لیے تیار نہیں ہو سکا۔");
+      setProblem(["This phone could not be set up for calls yet.", "یہ فون ابھی کالز کے لیے تیار نہیں ہو سکا۔"]);
     } finally {
       setBusy(false);
     }
@@ -124,25 +126,25 @@ export default function PhoneSetup({ talkToken, vapidPublicKey }: { talkToken: s
     <div className="w-full max-w-md space-y-2 rounded-3xl border border-emerald-200 bg-white/80 p-3 text-center">
       {showInstall && installPrompt && (
         <button onClick={install} className={`${button} bg-emerald-50 text-emerald-900 ring-1 ring-emerald-300`}>
-          📲 ہوم اسکرین پر لگائیں
+          📲 {t("Add to home screen", "ہوم اسکرین پر لگائیں")}
         </button>
       )}
       {showInstall && !installPrompt && isIos && (
         <p className="text-[clamp(0.95rem,4.2vw,1.1rem)] leading-[2.2] text-stone-700">
-          ہوم اسکرین پر لگانے کے لیے نیچے <bdi>Share</bdi> ⬆️ دبائیں، پھر <bdi>Add to Home Screen</bdi> دبائیں۔
+          {t("To add it to the home screen, press Share ⬆️ below, then Add to Home Screen.", "ہوم اسکرین پر لگانے کے لیے نیچے Share ⬆️ دبائیں، پھر Add to Home Screen دبائیں۔")}
         </p>
       )}
       {showAllow && (
         <button onClick={allowCalls} disabled={busy} className={`${button} bg-emerald-700 text-white`}>
-          {busy ? "…" : "🔔 خیریت کی کال کی اجازت دیں"}
+          {busy ? "…" : t("🔔 Allow Khairiyat calls", "🔔 خیریت کی کال کی اجازت دیں")}
         </button>
       )}
       {permission === "denied" && (
         <p className="text-[clamp(0.9rem,4vw,1.05rem)] leading-[2.2] text-rose-700">
-          کالز کی اجازت بند ہے۔ فون کی <bdi>Settings</bdi> میں خیریت کے <bdi>Notifications</bdi> کھولیں۔
+          {t("Calls are blocked. Open Khairiyat's Notifications in the phone's Settings.", "کالز کی اجازت بند ہے۔ فون کی Settings میں خیریت کے Notifications کھولیں۔")}
         </p>
       )}
-      {problem && <p className="text-sm leading-[2.2] text-rose-700">{problem}</p>}
+      {problem && <p className="text-sm leading-[2.2] text-rose-700">{t(...problem)}</p>}
     </div>
   );
 }

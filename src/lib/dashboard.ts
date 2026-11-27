@@ -2,6 +2,7 @@
 import "server-only";
 import { connection } from "next/server";
 import { db, type Checkin, type LiveAlert } from "./db";
+import type { Lang } from "./i18n";
 
 export type DashboardData = {
   checkins: Checkin[]; // newest first, last 14 days
@@ -50,12 +51,14 @@ export async function getDashboardData(parentId: string): Promise<DashboardData>
 }
 
 // Dates and times are always shown in Pakistan time.
-export function formatDay(iso: string): string {
-  return new Date(iso).toLocaleDateString("en-GB", { timeZone: "Asia/Karachi", weekday: "short", day: "numeric", month: "short" });
+const LOCALE: Record<Lang, string> = { en: "en-GB", ur: "ur-PK-u-nu-latn" }; // Western digits in both
+
+export function formatDay(iso: string, lang: Lang = "en"): string {
+  return new Date(iso).toLocaleDateString(LOCALE[lang], { timeZone: "Asia/Karachi", weekday: "short", day: "numeric", month: "short" });
 }
 
-export function formatTime(iso: string): string {
-  return new Date(iso).toLocaleTimeString("en-GB", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
+export function formatTime(iso: string, lang: Lang = "en"): string {
+  return new Date(iso).toLocaleTimeString(LOCALE[lang], { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit", hour12: true });
 }
 
 // "2026-11-26" in Pakistan time, used to group check-ins by day.

@@ -56,6 +56,7 @@ To try the whole flow, create a family account, add a parent, open their QR link
 - Live alerts during the call, 7-day charts and history; the dashboard refreshes by itself
 - **Voice messages**: the son or daughter records up to a minute; the parent hears it ("Ali ka paigham aaya hai") at the start of the next conversation, and the dashboard shows when it was heard
 - **The parent can reply in their own voice**: a separate button on the talk screen records up to a minute and sends it straight to the family, who play it on the dashboard (never sent to the AI)
+- **English / Urdu switch** on the family pages and the parent's screen (AI summaries, notifications and the spoken conversation are not switched)
 - **Monthly report for the doctor**: averages, medicine days, warnings and a day-by-day table; print it or save it as PDF
 - If the AI summary is unavailable, the check-in and its alerts are still saved and marked as needing attention
 
@@ -169,7 +170,7 @@ npm run dev          # http://localhost:3000
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 91 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm test` | 94 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
 | `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 

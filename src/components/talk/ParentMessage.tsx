@@ -5,6 +5,7 @@
 // Big Urdu buttons: record -> stop -> listen -> send.
 import { useEffect, useRef, useState } from "react";
 import { MAX_VOICE_BYTES, MAX_VOICE_SECONDS } from "@/lib/voice-rules";
+import { useLang } from "../i18n/LangProvider";
 
 type Step = "idle" | "recording" | "review" | "sending" | "sent";
 type Recording = { blob: Blob; url: string; seconds: number };
@@ -13,16 +14,17 @@ const RECORDING_TYPES = ["audio/webm;codecs=opus", "audio/mp4", "audio/ogg;codec
 
 type Props = {
   talkToken: string;
-  childNameUr: string;
+  childName: string;
   afterCall: boolean; // a conversation has just ended: invite them to send a message too
   onBusyChange: (busy: boolean) => void; // true while the microphone or a recording is in use
 };
 
-export default function ParentMessage({ talkToken, childNameUr, afterCall, onBusyChange }: Props) {
+export default function ParentMessage({ talkToken, childName, afterCall, onBusyChange }: Props) {
+  const { t } = useLang();
   const [step, setStep] = useState<Step>("idle");
   const [elapsed, setElapsed] = useState(0);
   const [recording, setRecording] = useState<Recording | null>(null);
-  const [problem, setProblem] = useState("");
+  const [problem, setProblem] = useState<[en: string, ur: string] | null>(null);
   const recorderRef = useRef<MediaRecorder | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const startingRef = useRef(false);
@@ -58,10 +60,10 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
   async function record() {
     if (startingRef.current) return;
     startingRef.current = true;
-    setProblem("");
+    setProblem(null);
     try {
       const mimeType = RECORDING_TYPES.find((t) => window.MediaRecorder?.isTypeSupported(t));
-      if (!mimeType) return setProblem("اس فون پر پیغام ریکارڈ نہیں ہو سکتا۔");
+      if (!mimeType) return setProblem(["This phone can't record a message.", "اس فون پر پیغام ریکارڈ نہیں ہو سکتا۔"]);
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const release = () => stream.getTracks().forEach((t) => t.stop());
       if (!mountedRef.current) return release();
@@ -78,7 +80,7 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
         const blob = new Blob(chunks, { type: recorder.mimeType || mimeType });
         const seconds = Math.min(MAX_VOICE_SECONDS, Math.max(1, Math.round((Date.now() - startedAt) / 1000)));
         if (!blob.size || blob.size > MAX_VOICE_BYTES) {
-          setProblem("ریکارڈنگ نہیں ہو سکی۔ دوبارہ کوشش کریں۔");
+          setProblem(["The recording didn't work. Please try again.", "ریکارڈنگ نہیں ہو سکی۔ دوبارہ کوشش کریں۔"]);
           return setStep("idle");
         }
         setRecording({ blob, url: URL.createObjectURL(blob), seconds });
@@ -95,7 +97,7 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
         if (s >= MAX_VOICE_SECONDS) stop();
       }, 500);
     } catch {
-      setProblem("مائیک کی اجازت نہیں ملی۔ براؤزر میں مائیک کی اجازت دیں۔");
+      setProblem(["The microphone isn't allowed. Please allow it in the browser.", "مائیک کی اجازت نہیں ملی۔ براؤزر میں مائیک کی اجازت دیں۔"]);
     } finally {
       startingRef.current = false;
     }
@@ -104,7 +106,7 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
   async function send() {
     if (!recording) return;
     setStep("sending");
-    setProblem("");
+    setProblem(null);
     const form = new FormData();
     form.set("talkToken", talkToken);
     form.set("audio", new File([recording.blob], "message", { type: recording.blob.type }));
@@ -117,7 +119,7 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
       setStep("sent");
     } catch {
       if (!mountedRef.current) return;
-      setProblem("پیغام نہیں جا سکا۔ انٹرنیٹ دیکھ کر دوبارہ بھیجیں۔");
+      setProblem(["The message didn't go. Check the internet and send it again.", "پیغام نہیں جا سکا۔ انٹرنیٹ دیکھ کر دوبارہ بھیجیں۔"]);
       setStep("review"); // the recording is still here
     }
   }
@@ -130,7 +132,7 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
     <div className="w-full max-w-md space-y-2 rounded-3xl border border-sky-200 bg-white/80 p-3 text-center">
       {step === "sent" && (
         <p role="status" className="text-[clamp(1rem,4.5vw,1.2rem)] leading-[2.2] text-emerald-800">
-          ✓ آپ کا پیغام {childNameUr} کو بھیج دیا گیا۔
+          ✓ {t(`Your message was sent to ${childName}.`, `آپ کا پیغام ${childName} کو بھیج دیا گیا۔`)}
         </p>
       )}
       {(step === "idle" || step === "sent") && (
@@ -138,51 +140,51 @@ export default function ParentMessage({ talkToken, childNameUr, afterCall, onBus
           {step === "idle" && (
             <p className={note}>
               {afterCall
-                ? `بات ہو گئی۔ اب چاہیں تو ${childNameUr} کو اپنی آواز میں پیغام بھی بھیجیں۔`
-                : `خیریت سے بات الگ ہے۔ یہ پیغام سیدھا ${childNameUr} کو جائے گا۔`}
+                ? t(`Talk finished. If you like, also send ${childName} a message in your voice.`, `بات ہو گئی۔ اب چاہیں تو ${childName} کو اپنی آواز میں پیغام بھی بھیجیں۔`)
+                : t(`This is separate from talking with Khairiyat. The message goes straight to ${childName}.`, `خیریت سے بات الگ ہے۔ یہ پیغام سیدھا ${childName} کو جائے گا۔`)}
             </p>
           )}
           <button type="button" onClick={record} className={`${big} bg-sky-700 text-white`}>
-            🎙 {childNameUr} کو آواز کا پیغام
+            🎙 {t(`Voice message to ${childName}`, `${childName} کو آواز کا پیغام`)}
           </button>
         </>
       )}
       {step === "recording" && (
         <>
           <p role="status" className={note}>
-            بولیں… <bdi dir="ltr">{elapsed} / {MAX_VOICE_SECONDS}</bdi>
+            {t("Speak…", "بولیں…")} <bdi dir="ltr">{elapsed} / {MAX_VOICE_SECONDS}</bdi>
           </p>
           <button type="button" onClick={stop} className={`${big} bg-rose-600 text-white`}>
-            ■ ریکارڈنگ ختم کریں
+            ■ {t("Stop recording", "ریکارڈنگ ختم کریں")}
           </button>
         </>
       )}
       {(step === "review" || step === "sending") && recording && (
         <>
-          <audio controls src={recording.url} className="w-full" aria-label="آپ کا پیغام" />
+          <audio controls src={recording.url} className="w-full" aria-label={t("Your message", "آپ کا پیغام")} />
           <button type="button" onClick={send} disabled={step === "sending"} className={`${big} bg-emerald-700 text-white`}>
-            {step === "sending" ? "بھیجا جا رہا ہے…" : `📤 ${childNameUr} کو بھیجیں`}
+            {step === "sending" ? t("Sending…", "بھیجا جا رہا ہے…") : t(`📤 Send to ${childName}`, `📤 ${childName} کو بھیجیں`)}
           </button>
           <div className="flex justify-center gap-4">
             <button type="button" onClick={record} disabled={step === "sending"} className={small}>
-              دوبارہ بولیں
+              {t("Record again", "دوبارہ بولیں")}
             </button>
             <button
               type="button"
               onClick={() => {
                 setRecording(null);
-                setProblem("");
+                setProblem(null);
                 setStep("idle");
               }}
               disabled={step === "sending"}
               className={small}
             >
-              رہنے دیں
+              🗑 {t("Delete", "حذف کریں")}
             </button>
           </div>
         </>
       )}
-      {problem && <p role="alert" className="text-sm leading-[2.2] text-rose-700">{problem}</p>}
+      {problem && <p role="alert" className="text-sm leading-[2.2] text-rose-700">{t(...problem)}</p>}
     </div>
   );
 }

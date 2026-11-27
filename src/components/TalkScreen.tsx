@@ -12,6 +12,10 @@ import {
 import { AudioPlayer, MicStream } from "@/lib/live-audio";
 import { HELPLINES, detectByKeywords, getRule, type SafetyRule } from "@/lib/safety";
 import { devanagariToRoman } from "@/lib/transliterate";
+import LanguageSwitch from "./i18n/LanguageSwitch";
+import { useLang } from "./i18n/LangProvider";
+import { TALK_LANG_COOKIE } from "@/lib/i18n";
+import { TIPS_EN } from "@/lib/safety-tips-en";
 import IncomingCall from "./talk/IncomingCall";
 import ParentMessage from "./talk/ParentMessage";
 import PhoneSetup from "./talk/PhoneSetup";
@@ -26,15 +30,15 @@ export type Turn = { role: "ammi" | "khairiyat"; text: string };
 
 // Text shown inside the big circle for each state. Kept short so it always fits
 // inside the circle on small phones ("خیریت" is already shown in the header).
-const STATUS_TEXT: Record<Status, string> = {
-  idle: "بات کریں",
-  message: "پیغام سنیں…",
-  connecting: "رابطہ ہو رہا ہے…",
-  listening: "سن رہی ہے…",
-  speaking: "بول رہی ہے…",
-  ending: "اللہ حافظ…",
-  done: "اللہ حافظ",
-  error: "دوبارہ کوشش کریں",
+const STATUS_TEXT: Record<Status, [en: string, ur: string]> = {
+  idle: ["Talk", "بات کریں"],
+  message: ["Listen…", "پیغام سنیں…"],
+  connecting: ["Connecting…", "رابطہ ہو رہا ہے…"],
+  listening: ["Listening…", "سن رہی ہے…"],
+  speaking: ["Speaking…", "بول رہی ہے…"],
+  ending: ["Goodbye…", "اللہ حافظ…"],
+  done: ["Goodbye", "اللہ حافظ"],
+  error: ["Try again", "دوبارہ کوشش کریں"],
 };
 
 const MAX_CALL_MS = 6 * 60 * 1000; // end the call automatically after 6 minutes
@@ -47,6 +51,8 @@ type Props = {
   childPhone: string; // for the "call your son/daughter" button; empty = no button
   vapidPublicKey: string; // lets this phone sign up for calls (Web Push); public, not a secret
   canSendMessage: boolean; // show the "voice message to your child" button (off in the shared demo)
+  nameEn: string; // the names for the English screen
+  childNameEn: string;
 };
 
 // Incoming-call helpers: call ids are UUIDs; ?call=<id> is read from the page address.
@@ -61,11 +67,15 @@ const readCallParam = (): string | null => {
 const CALL_CHANNEL = "khairiyat-call";
 
 export default function TalkScreen(props: Props) {
-  const { talkToken, nickname, nicknameUr, childNameUr, childPhone, vapidPublicKey, canSendMessage } = props;
+  const { talkToken, nickname, childPhone, vapidPublicKey, canSendMessage } = props;
+  const { lang, t } = useLang();
+  const ur = lang === "ur";
+  const parentName = ur ? props.nicknameUr : props.nameEn;
+  const childName = ur ? props.childNameUr : props.childNameEn;
   const [messageBusy, setMessageBusy] = useState(false); // recording a message for the family
   const [status, setStatus] = useState<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
-  const [errorText, setErrorText] = useState("");
+  const [errorText, setErrorText] = useState<[en: string, ur: string] | null>(null);
   const [alerts, setAlerts] = useState<RaisedAlert[]>([]);
   const alertsRef = useRef<RaisedAlert[]>([]);
   // Whether this call's summary reached the family: shown on screen after the call.
@@ -210,7 +220,7 @@ export default function TalkScreen(props: Props) {
     }
   }
 
-  function fail(message: string) {
+  function fail(message: [en: string, ur: string]) {
     releaseCall();
     setErrorText(message);
     setStatus("error");
@@ -265,7 +275,7 @@ export default function TalkScreen(props: Props) {
     const callId = ++callIdRef.current;
     const isCurrent = () => callId === callIdRef.current;
 
-    setErrorText("");
+    setErrorText(null);
     setStatus("connecting");
     turnsRef.current = [];
     setTurns([]);
@@ -309,10 +319,10 @@ export default function TalkScreen(props: Props) {
         callbacks: {
           onmessage: (msg) => handleMessage(callId, msg),
           onerror: () => {
-            if (isCurrent()) fail("رابطہ ٹوٹ گیا۔ دوبارہ کوشش کریں۔");
+            if (isCurrent()) fail(["The connection dropped. Please try again.", "رابطہ ٹوٹ گیا۔ دوبارہ کوشش کریں۔"]);
           },
           onclose: (e) => {
-            if (isCurrent() && e.code !== 1000) fail("رابطہ ختم ہو گیا۔ دوبارہ کوشش کریں۔");
+            if (isCurrent() && e.code !== 1000) fail(["The connection ended. Please try again.", "رابطہ ختم ہو گیا۔ دوبارہ کوشش کریں۔"]);
           },
         },
       });
@@ -354,8 +364,8 @@ export default function TalkScreen(props: Props) {
       const micDenied = err instanceof DOMException && err.name === "NotAllowedError";
       fail(
         micDenied
-          ? "مائیک کی اجازت نہیں ملی۔ براؤزر میں مائیک کی اجازت دیں۔"
-          : "ابھی رابطہ نہیں ہو سکا۔ تھوڑی دیر بعد کوشش کریں۔"
+          ? ["The microphone isn't allowed. Please allow it in the browser.", "مائیک کی اجازت نہیں ملی۔ براؤزر میں مائیک کی اجازت دیں۔"]
+          : ["Could not connect. Please try again in a little while.", "ابھی رابطہ نہیں ہو سکا۔ تھوڑی دیر بعد کوشش کریں۔"]
       );
     }
   }
@@ -443,17 +453,24 @@ export default function TalkScreen(props: Props) {
     // screen, from small phones (~320px wide) to tablets and laptops. Circles also look at the
     // screen height (dvh), so they fit on short phones and in landscape.
     <main
-      dir="rtl"
-      className="font-urdu flex min-h-dvh flex-col items-center bg-amber-50 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-stone-800"
+      lang={lang}
+      dir={ur ? "rtl" : "ltr"}
+      className={`${ur ? "font-urdu " : ""}flex min-h-dvh flex-col items-center bg-amber-50 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-stone-800`}
     >
       {incomingCallId && !inCall && (
-        <IncomingCall childNameUr={childNameUr} onAnswer={answerCall} onLater={() => respondToCall("decline")} />
+        <IncomingCall childName={childName} onAnswer={answerCall} onLater={() => respondToCall("decline")} />
       )}
 
       <header className="w-full max-w-2xl text-center">
-        <h1 className="text-[clamp(2rem,9vw,2.75rem)] leading-[2] text-emerald-800">خیریت</h1>
+        {/* Language choice; hidden during a conversation so nothing distracts. */}
+        {(status === "idle" || status === "done" || status === "error") && !messageBusy && (
+          <div dir="ltr" className="flex justify-end">
+            <LanguageSwitch lang={lang} cookie={TALK_LANG_COOKIE} />
+          </div>
+        )}
+        <h1 className="font-urdu text-[clamp(2rem,9vw,2.75rem)] leading-[2] text-emerald-800">خیریت</h1>
         <p className="text-[clamp(1rem,4.2vw,1.2rem)] leading-[2.2] text-stone-600">
-          السلام علیکم {nicknameUr}! {childNameUr} نے آپ کا حال پوچھا ہے۔
+          {t(`Assalam o alaikum ${parentName}! ${childName} asked how you are.`, `السلام علیکم ${parentName}! ${childName} نے آپ کا حال پوچھا ہے۔`)}
         </p>
       </header>
 
@@ -464,7 +481,7 @@ export default function TalkScreen(props: Props) {
             disabled={status === "ending" || messageBusy}
             className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-emerald-600 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
           >
-            {status === "done" ? "پھر بات کریں" : STATUS_TEXT[status === "error" ? "error" : "idle"]}
+            {status === "done" ? t("Talk again", "پھر بات کریں") : t(...STATUS_TEXT[status === "error" ? "error" : "idle"])}
           </button>
         ) : (
           // Smaller circle during the call, so the words below have room.
@@ -473,28 +490,28 @@ export default function TalkScreen(props: Props) {
               status === "speaking" ? "animate-pulse bg-emerald-500" : "bg-emerald-700"
             }`}
           >
-            {STATUS_TEXT[status]}
+            {t(...STATUS_TEXT[status])}
           </div>
         )}
 
         {/* The family's voice message is playing. */}
         {status === "message" && (
           <div role="status" className="w-full max-w-xl rounded-3xl border border-emerald-300 bg-white p-4 text-center shadow">
-            <p className="text-[clamp(1.3rem,6vw,1.75rem)] leading-[2.1] text-emerald-900">💌 {childNameUr} کا پیغام آیا ہے</p>
+            <p className="text-[clamp(1.3rem,6vw,1.75rem)] leading-[2.1] text-emerald-900">💌 {t(`A message from ${childName}`, `${childName} کا پیغام آیا ہے`)}</p>
             <div className="mt-2 flex flex-col items-center gap-2">
               {voiceBlocked && (
                 <button
                   onClick={() => voiceRef.current?.audio.play().then(() => setVoiceBlocked(false)).catch(() => {})}
                   className="rounded-full bg-emerald-700 px-8 py-2 text-[clamp(1.2rem,5.5vw,1.5rem)] leading-[2] text-white shadow-lg active:scale-95"
                 >
-                  ▶️ پیغام سنیں
+                  ▶️ {t("Play the message", "پیغام سنیں")}
                 </button>
               )}
               <button
                 onClick={() => voiceRef.current?.finish(false)}
                 className="px-4 text-[clamp(1rem,4.2vw,1.15rem)] leading-[2.2] text-stone-600 underline"
               >
-                بعد میں سنیں گے
+                {t("Listen later", "بعد میں سنیں گے")}
               </button>
             </div>
           </div>
@@ -504,34 +521,35 @@ export default function TalkScreen(props: Props) {
             so the call buttons are always one tap away. */}
         {urgent && (
           <div role="alert" className="w-full max-w-xl rounded-3xl bg-rose-600 p-[clamp(0.75rem,4vw,1.25rem)] text-center text-white shadow-2xl">
-            <p className="text-[clamp(1.4rem,6.5vw,1.9rem)] leading-[2]">⚠️ {urgent.rule.titleUr}</p>
+            <p className="text-[clamp(1.4rem,6.5vw,1.9rem)] leading-[2]">⚠️ {ur ? urgent.rule.titleUr : urgent.rule.title}</p>
             {urgent.rule.tipsUr && (
-              <p className="mt-1 text-[clamp(1rem,4.5vw,1.25rem)] leading-[2]">{urgent.rule.tipsUr}</p>
+              <p className="mt-1 text-[clamp(1rem,4.5vw,1.25rem)] leading-[2]">{ur ? urgent.rule.tipsUr : TIPS_EN[urgent.rule.id]}</p>
             )}
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
                 href={`tel:${helpline.number}`}
                 className="rounded-full bg-white px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-rose-700 shadow-lg active:scale-95"
               >
-                📞 {helpline.labelUr} پر کال
+                📞 {t(`Call ${helpline.number}`, `${helpline.labelUr} پر کال`)}
               </a>
               {childPhone && (
                 <a
                   href={`tel:${childPhone}`}
                   className="rounded-full bg-rose-900 px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-white shadow-lg active:scale-95"
                 >
-                  📞 {childNameUr} کو کال
+                  📞 {t(`Call ${childName}`, `${childName} کو کال`)}
                 </a>
               )}
             </div>
-            <p className="mt-2 text-[clamp(0.95rem,4vw,1.125rem)] leading-[2]">{childNameUr} کو بتایا جا رہا ہے۔</p>
+            <p className="mt-2 text-[clamp(0.95rem,4vw,1.125rem)] leading-[2]">{t(`${childName} is being told.`, `${childName} کو بتایا جا رہا ہے۔`)}</p>
           </div>
         )}
 
         {/* Small note for worries that the family should hear about today. */}
         {concerns.length > 0 && (
           <p className="w-full max-w-xl rounded-2xl bg-amber-200 px-4 py-1 text-center text-[clamp(0.95rem,4vw,1.125rem)] leading-[2.2] text-amber-900">
-            📝 {concerns.map((c) => c.rule.titleUr).join("، ")}: {childNameUr} کو بتا دیا جائے گا۔
+            📝 {concerns.map((c) => (ur ? c.rule.titleUr : c.rule.title)).join(ur ? "، " : ", ")}:{" "}
+            {t(`${childName} will be told.`, `${childName} کو بتا دیا جائے گا۔`)}
           </p>
         )}
 
@@ -547,22 +565,22 @@ export default function TalkScreen(props: Props) {
         )}
         {status === "done" && (
           <p className="max-w-xl text-center text-[clamp(1.2rem,5.5vw,1.6rem)] leading-[2.2]">
-            شکریہ {nicknameUr}! اپنا خیال رکھیے گا۔
+            {t(`Thank you ${parentName}! Take care.`, `شکریہ ${parentName}! اپنا خیال رکھیے گا۔`)}
           </p>
         )}
         {/* Confirms the family was told (or that it failed), after the call. */}
         {summaryState === "sent" && (
           <p className="text-center text-[clamp(0.95rem,4vw,1.1rem)] leading-[2.2] text-emerald-800">
-            ✓ آج کی بات {childNameUr} کے لیے محفوظ ہو گئی۔
+            ✓ {t(`Today's talk is saved for ${childName}.`, `آج کی بات ${childName} کے لیے محفوظ ہو گئی۔`)}
           </p>
         )}
         {summaryState === "failed" && (
           <p className="text-center text-[clamp(0.95rem,4vw,1.1rem)] leading-[2.2] text-rose-700">
-            بات محفوظ نہیں ہو سکی۔ انٹرنیٹ چیک کریں۔
+            {t("The talk could not be saved. Please check the internet.", "بات محفوظ نہیں ہو سکی۔ انٹرنیٹ چیک کریں۔")}
           </p>
         )}
         {errorText && (
-          <p className="max-w-xl text-center text-[clamp(1rem,4.5vw,1.25rem)] leading-[2.2] text-rose-700">{errorText}</p>
+          <p className="max-w-xl text-center text-[clamp(1rem,4.5vw,1.25rem)] leading-[2.2] text-rose-700">{t(...errorText)}</p>
         )}
 
         {inCall && (
@@ -570,14 +588,14 @@ export default function TalkScreen(props: Props) {
             onClick={end}
             className="shrink-0 rounded-full bg-rose-600 px-8 py-2 text-[clamp(1.2rem,5.8vw,1.6rem)] leading-[2] text-white shadow-lg active:scale-95"
           >
-            بات ختم کریں
+            {t("End the talk", "بات ختم کریں")}
           </button>
         )}
         {/* The parent's own voice message to the family: separate from talking with Khairiyat. */}
         {canSendMessage && !inCall && status !== "ending" && (
           <ParentMessage
             talkToken={talkToken}
-            childNameUr={childNameUr}
+            childName={childName}
             afterCall={status === "done"}
             onBusyChange={setMessageBusy}
           />
@@ -587,7 +605,7 @@ export default function TalkScreen(props: Props) {
       </section>
 
       <footer className="mt-3 w-full max-w-2xl text-center text-[clamp(0.8rem,3.4vw,0.9rem)] leading-[2.2] text-stone-500">
-        خیریت ایک <bdi>AI</bdi> ساتھی ہے۔ ایمرجنسی میں <bdi>1122</bdi> پر کال کریں۔
+        {t("Khairiyat is an AI companion. In an emergency, call 1122.", "خیریت ایک AI ساتھی ہے۔ ایمرجنسی میں 1122 پر کال کریں۔")}
       </footer>
     </main>
   );
