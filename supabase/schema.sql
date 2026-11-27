@@ -130,3 +130,19 @@ grant select, insert, update, delete on public.parents to service_role;
 grant select, insert, delete on public.checkins to service_role;
 grant select, insert, delete on public.live_alerts to service_role;
 revoke all on public.parents, public.checkins, public.live_alerts from anon, authenticated;
+
+-- ---------- Voice messages from the family ----------
+-- At most one per parent: a new recording replaces the old one. Khairiyat plays it at the
+-- start of the next conversation, then the recording is erased (only the time it was heard stays).
+create table if not exists public.voice_messages (
+  id               uuid primary key default gen_random_uuid(),
+  parent_id        text not null unique references public.parents (id) on delete cascade,
+  created_at       timestamptz not null default now(),
+  mime_type        text not null check (mime_type in ('audio/webm', 'audio/mp4', 'audio/ogg')),
+  audio            text not null check (char_length(audio) <= 1000000),   -- base64; empty once heard
+  duration_seconds smallint not null check (duration_seconds between 1 and 65),
+  played_at        timestamptz
+);
+alter table public.voice_messages enable row level security;
+grant select, insert, update, delete on public.voice_messages to service_role;
+revoke all on public.voice_messages from anon, authenticated;

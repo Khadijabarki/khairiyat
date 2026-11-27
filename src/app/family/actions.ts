@@ -14,6 +14,8 @@ import { deviceCount, ringParent } from "@/lib/calls";
 import { getFamilyParent } from "@/lib/data";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/security";
+import { deleteVoice, saveVoice } from "@/lib/voice";
+import { MAX_VOICE_BYTES, looksLikeAudio, voiceSeconds, voiceType } from "@/lib/voice-rules";
 
 import type { ParentFormValues } from "@/components/family/ParentForm";
 
@@ -210,6 +212,39 @@ export async function callNow(parentId: string, _prev: CallNowState): Promise<Ca
   if (!call) return { message: "Could not place the call. Please try again." };
   if (call.status === "failed") return { message: `Couldn't reach ${parent.nickname}'s phone. Open their link again to refresh it.` };
   return { ok: true, message: `Calling ${parent.nickname}… their phone is ringing.` };
+}
+
+// A voice message from the family, played to the parent at the start of their next conversation.
+export async function sendVoiceMessage(parentId: string, form: FormData): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId); // ownership check
+  if (!parent) return { ok: false, error: "Not found." };
+  // The demo is shared by everyone: strangers must not leave recordings for each other.
+  if (parent.isDemo) return { ok: false, error: "Voice messages are switched off in the shared demo." };
+  if (!rateLimit(`voicemessage:${user.id}`, 10, 10 * 60 * 1000)) {
+    return { ok: false, error: "Please wait a few minutes before sending another message." };
+  }
+
+  const file = form.get("audio");
+  const seconds = voiceSeconds(form.get("seconds"));
+  if (!(file instanceof File) || !seconds || file.size === 0 || file.size > MAX_VOICE_BYTES) {
+    return { ok: false, error: "The recording is empty or too long. Please record again." };
+  }
+  const type = voiceType(file.type);
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!type || !looksLikeAudio(bytes, type)) return { ok: false, error: "This browser's recording format isn't supported." };
+
+  if (!(await saveVoice(parent.id, type, bytes, seconds))) return { ok: false, error: "Could not save. Please try again." };
+  revalidatePath(`/family/${parent.id}`);
+  return { ok: true };
+}
+
+export async function removeVoiceMessage(parentId: string): Promise<void> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId);
+  if (!parent || parent.isDemo) return;
+  await deleteVoice(parent.id);
+  revalidatePath(`/family/${parent.id}`);
 }
 
 // Removes a parent together with all their check-ins and alerts (database cascade).

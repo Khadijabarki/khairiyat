@@ -19,7 +19,7 @@ import PhoneSetup from "./talk/PhoneSetup";
 // source "ai" = the AI called raise_alert; "keywords" = our backup keyword check caught it.
 export type RaisedAlert = { rule: SafetyRule; reason: string; source: "ai" | "keywords" };
 
-type Status = "idle" | "connecting" | "listening" | "speaking" | "ending" | "done" | "error";
+type Status = "idle" | "message" | "connecting" | "listening" | "speaking" | "ending" | "done" | "error";
 
 export type Turn = { role: "ammi" | "khairiyat"; text: string };
 
@@ -27,6 +27,7 @@ export type Turn = { role: "ammi" | "khairiyat"; text: string };
 // inside the circle on small phones ("خیریت" is already shown in the header).
 const STATUS_TEXT: Record<Status, string> = {
   idle: "بات کریں",
+  message: "پیغام سنیں…",
   connecting: "رابطہ ہو رہا ہے…",
   listening: "سن رہی ہے…",
   speaking: "بول رہی ہے…",
@@ -79,6 +80,10 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
   const playerRef = useRef<AudioPlayer | null>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const turnsRef = useRef<Turn[]>([]);
+  // The family's voice message while it is playing. finish(true) = heard to the end.
+  const voiceRef = useRef<{ audio: HTMLAudioElement; finish: (heard: boolean) => void } | null>(null);
+  // True if the phone blocked automatic sound, so a "play" button is needed.
+  const [voiceBlocked, setVoiceBlocked] = useState(false);
 
   // Every call gets a new number. Anything from an older call (a late message,
   // a connection that finishes after the call was cancelled) is ignored and closed.
@@ -165,6 +170,7 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
     callIdRef.current += 1;
     activeRef.current = false;
     if (timerRef.current) clearTimeout(timerRef.current);
+    voiceRef.current?.finish(false);
     micRef.current?.stop();
     sessionRef.current?.close();
     playerRef.current?.close();
@@ -208,6 +214,47 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
     sendSummary(false).then((ok) => setSummaryState(ok ? "sent" : "none"));
   }
 
+  // Plays the family's voice message, if one is waiting, before Khairiyat starts talking
+  // (so the microphone never picks it up). Returns true if it was heard to the end.
+  // Any problem is ignored: the daily conversation matters more.
+  async function playFamilyMessage(isCurrent: () => boolean): Promise<boolean> {
+    const post = (body: object) =>
+      fetch("/api/voice", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ talkToken, ...body }),
+        signal: AbortSignal.timeout(6000),
+      });
+    try {
+      const res = await post({});
+      if (!res.ok) return false;
+      const { message } = (await res.json()) as { message: { id: string; mimeType: string; audio: string } | null };
+      if (!message || !isCurrent()) return false;
+
+      setStatus("message");
+      const audio = new Audio(`data:${message.mimeType};base64,${message.audio}`);
+      const heard = await new Promise<boolean>((resolve) => {
+        const finish = (ok: boolean) => {
+          voiceRef.current = null;
+          audio.onended = audio.onerror = null;
+          audio.pause();
+          setVoiceBlocked(false);
+          resolve(ok);
+        };
+        voiceRef.current = { audio, finish };
+        audio.onended = () => finish(true);
+        audio.onerror = () => finish(false);
+        audio.play().catch(() => {
+          if (voiceRef.current?.audio === audio) setVoiceBlocked(true);
+        });
+      });
+      if (heard) post({ heardId: message.id }).catch(() => {});
+      return heard;
+    } catch {
+      return false;
+    }
+  }
+
   async function start() {
     if (activeRef.current) return; // already starting or in a call (e.g. a double click)
     activeRef.current = true;
@@ -227,6 +274,19 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
     channelRef.current?.postMessage("call-started");
 
     try {
+      // Prepare the speaker first (it must happen right after the button press).
+      const player = new AudioPlayer();
+      playerRef.current = player;
+      await player.resume();
+      player.onSpeakingChange = (speaking) => {
+        if (isCurrent()) setStatus(speaking ? "speaking" : "listening");
+      };
+
+      // A voice message from the family is played before the conversation.
+      const heardMessage = await playFamilyMessage(isCurrent);
+      if (!isCurrent()) return; // cancelled while the message was playing
+      setStatus("connecting");
+
       // 1. Ask our server for a one-time token (the real API key stays on the server).
       const res = await fetch("/api/live-token", {
         method: "POST",
@@ -237,15 +297,7 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
       if (!res.ok) throw new Error(`Token request failed (${res.status})`);
       const data: { token: string; model: string } = await res.json();
 
-      // 2. Prepare the speaker (must happen right after the button click).
-      const player = new AudioPlayer();
-      playerRef.current = player;
-      await player.resume();
-      player.onSpeakingChange = (speaking) => {
-        if (isCurrent()) setStatus(speaking ? "speaking" : "listening");
-      };
-
-      // 3. Connect to Gemini Live with the token.
+      // 2. Connect to Gemini Live with the token.
       const ai = new GoogleGenAI({ apiKey: data.token, httpOptions: { apiVersion: "v1alpha" } });
       const session = await ai.live.connect({
         model: data.model,
@@ -266,7 +318,7 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
       }
       sessionRef.current = session;
 
-      // 4. Start the microphone and stream it to Gemini.
+      // 3. Start the microphone and stream it to Gemini.
       const mic = new MicStream();
       await mic.start((chunk) => {
         if (isCurrent()) {
@@ -279,9 +331,12 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
       }
       micRef.current = mic;
 
-      // 5. Ask Khairiyat to greet first, like a phone call.
+      // 4. Ask Khairiyat to greet first, like a phone call.
+      const note = heardMessage
+        ? " Abhi unhon ne apne bachay ka voice message suna hai (tum ne nahi suna, is liye us mein kya kaha gaya yeh mat banao)."
+        : "";
       session.sendClientContent({
-        turns: [{ role: "user", parts: [{ text: `(${nickname} ne baat shuru ki hai. Salam kar ke pyar se haal poocho.)` }] }],
+        turns: [{ role: "user", parts: [{ text: `(${nickname} ne baat shuru ki hai.${note} Salam kar ke pyar se haal poocho.)` }] }],
         turnComplete: true,
       });
 
@@ -368,7 +423,7 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
     // eslint-disable-next-line react-hooks/exhaustive-deps -- set up once; the functions only use refs
   }, []);
 
-  const inCall = status === "listening" || status === "speaking" || status === "connecting";
+  const inCall = status === "listening" || status === "speaking" || status === "connecting" || status === "message";
   const lastKhairiyat = [...turns].reverse().find((t) => t.role === "khairiyat");
   // The most recent urgent alert decides the red help panel; worries are listed in a small note.
   const urgent = [...alerts].reverse().find((a) => a.rule.level === "urgent");
@@ -415,6 +470,29 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
             }`}
           >
             {STATUS_TEXT[status]}
+          </div>
+        )}
+
+        {/* The family's voice message is playing. */}
+        {status === "message" && (
+          <div role="status" className="w-full max-w-xl rounded-3xl border border-emerald-300 bg-white p-4 text-center shadow">
+            <p className="text-[clamp(1.3rem,6vw,1.75rem)] leading-[2.1] text-emerald-900">💌 {childNameUr} کا پیغام آیا ہے</p>
+            <div className="mt-2 flex flex-col items-center gap-2">
+              {voiceBlocked && (
+                <button
+                  onClick={() => voiceRef.current?.audio.play().then(() => setVoiceBlocked(false)).catch(() => {})}
+                  className="rounded-full bg-emerald-700 px-8 py-2 text-[clamp(1.2rem,5.5vw,1.5rem)] leading-[2] text-white shadow-lg active:scale-95"
+                >
+                  ▶️ پیغام سنیں
+                </button>
+              )}
+              <button
+                onClick={() => voiceRef.current?.finish(false)}
+                className="px-4 text-[clamp(1rem,4.2vw,1.15rem)] leading-[2.2] text-stone-600 underline"
+              >
+                بعد میں سنیں گے
+              </button>
+            </div>
           </div>
         )}
 

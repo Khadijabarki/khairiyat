@@ -8,6 +8,8 @@ import CallPanel from "@/components/family/CallPanel";
 import FamilyAlerts from "@/components/family/FamilyAlerts";
 import { vapidPublicKey } from "@/lib/push";
 import ShareLink from "@/components/family/ShareLink";
+import VoicePanel from "@/components/family/VoicePanel";
+import { voiceStatus } from "@/lib/voice";
 import { deviceCount, latestCall } from "@/lib/calls";
 import TrendChart, { type TrendPoint } from "@/components/family/TrendChart";
 import { dayKey, formatDay, formatTime, getDashboardData } from "@/lib/dashboard";
@@ -50,10 +52,11 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
   if (!parent) notFound();
   const justAdded = (await searchParams).added === "1";
 
-  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall] = await Promise.all([
+  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall, voice] = await Promise.all([
     getDashboardData(parent.id),
     deviceCount(parent.id),
     latestCall(parent.id),
+    voiceStatus(parent.id),
   ]);
   const latest = checkins[0];
 
@@ -123,6 +126,17 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
       <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={parent.isDemo} />
 
       <CallPanel parent={parent} devices={devices} lastCall={lastCall} />
+
+      <VoicePanel parent={parent} status={voice} />
+
+      <p className="mt-4">
+        <Link
+          href={`/family/${parent.id}/report`}
+          className="inline-block rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:border-emerald-500"
+        >
+          🩺 Monthly report for the doctor
+        </Link>
+      </p>
 
       {latest ? <TodayCard checkin={latest} /> : (
         <p className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-stone-600">
