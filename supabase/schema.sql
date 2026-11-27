@@ -87,6 +87,20 @@ create table if not exists public.push_subscriptions (
 );
 create index if not exists push_subscriptions_parent on public.push_subscriptions (parent_id);
 
+-- ---------- Family phones and computers that receive alerts (Web Push) ----------
+create table if not exists public.family_devices (
+  id          uuid primary key default gen_random_uuid(),
+  family_id   uuid not null references auth.users (id) on delete cascade,
+  created_at  timestamptz not null default now(),
+  endpoint    text not null unique check (endpoint ~ '^https://' and char_length(endpoint) <= 1000),
+  p256dh      text not null check (char_length(p256dh) <= 200),
+  auth        text not null check (char_length(auth) <= 100)
+);
+create index if not exists family_devices_family on public.family_devices (family_id);
+alter table public.family_devices enable row level security;
+grant select, insert, update, delete on public.family_devices to service_role;
+revoke all on public.family_devices from anon, authenticated;
+
 -- ---------- Calls: one row each time Khairiyat rings a parent ----------
 create table if not exists public.calls (
   id           uuid primary key default gen_random_uuid(),

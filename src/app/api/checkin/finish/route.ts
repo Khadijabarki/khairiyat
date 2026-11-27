@@ -88,7 +88,7 @@ export async function POST(request: Request) {
     summarize: (budgetMs) => summarizeCheckin(parent, turns, budgetMs),
     save: saveCheckin,
     remove: removeCheckin,
-    notify: notifyFamily,
+    notify: (title, body) => notifyFamily(parent, { title, body, urgent: title.startsWith("🚨") }),
     later: (task) => after(task), // keeps running after the reply is sent
     wait,
     newId: randomUUID,

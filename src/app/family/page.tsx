@@ -1,10 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Suspense } from "react";
+import FamilyAlerts from "@/components/family/FamilyAlerts";
 import { RiskBadge, SampleTag, SignOutButton } from "@/components/family/parts";
-import { requireUser } from "@/lib/auth";
+import { demoEmail, requireUser } from "@/lib/auth";
 import { formatDay, formatTime, getDashboardData } from "@/lib/dashboard";
 import { getFamilyParents } from "@/lib/data";
+import { vapidPublicKey } from "@/lib/push";
 
 // Private health information: never in search results.
 export const metadata: Metadata = { title: "Family · Khairiyat", robots: { index: false, follow: false } };
@@ -43,6 +45,8 @@ async function FamilyHome() {
           <SignOutButton />
         </div>
       </header>
+
+      <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={user.email === demoEmail()} />
 
       {parents.length === 0 ? (
         <section className="mt-8 rounded-2xl border border-stone-200 bg-white p-6 text-center">

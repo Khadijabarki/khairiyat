@@ -52,6 +52,7 @@ To try the whole flow, create a family account, add a parent, open their QR link
 - Sign up, add parents (medicines, interests, daily call time, voice), and share a private link by QR code
 - **Daily call** at the chosen time, with a retry if unanswered and an alert on the dashboard if the retry is also unanswered; **Call now** button
 - After each conversation: a short summary, scores (mood, sleep, pain, medicine, food) and a message preview
+- **Notifications on the family's phone or computer** (optional, one tap to turn on): emergencies during the call, the summary after it, and unanswered calls
 - Live alerts during the call, 7-day charts and history; the dashboard refreshes by itself
 - If the AI summary is unavailable, the check-in and its alerts are still saved and marked as needing attention
 
@@ -67,6 +68,7 @@ flowchart LR
   F[Family dashboard] <--> S
   T[cron-job.org / GitHub Actions<br/>timer] -- "secret request" --> S
   S -- "Web Push call" --> P
+  S -- "Web Push alerts" --> F
 ```
 
 1. The browser asks our server for a **single-use token**. The server locks the model, voice and instructions (including memory and medicines) into it, so the API key never reaches the browser.
@@ -81,14 +83,14 @@ flowchart LR
 - The parent's consent is required when they are added, and the AI says it is an AI if asked.
 - Database tables have Row Level Security on and give browser roles no access; only the server reads them, and every family page and action checks ownership.
 - Family sign-in uses Supabase Auth with `httpOnly` cookies. Each parent's talk link holds a random 32-character token that the family can replace.
-- API routes check the request origin, validate input and limit body size; rate limits are kept in memory (best effort on serverless hosting).
+- API routes check the request origin, validate input and limit body size; push messages are only sent to known browser push services; rate limits are kept in memory (best effort on serverless hosting).
 - Security headers block framing and restrict microphone use to this site. Error logs record the error type, never messages that could contain secrets.
 
 ## Current limits (prototype)
 
 - Calls ring the **installed web app over the internet**. With the app closed, the phone shows a notification with vibration; it does not ring continuously like a phone call, and some phones or Chrome's spam protection may delay or hide it. Real phone-line calls are not built.
 - Timer accuracy depends on the scheduling service (a few minutes).
-- Family alerts appear **on the dashboard**. The "message to the family" is a preview there; no WhatsApp or SMS is sent. An optional Telegram message exists in the code (one chat for the whole server, not enabled in the live demo).
+- Family alerts are **web notifications** (and appear on the dashboard). No WhatsApp or SMS is sent. They can be delayed or hidden by the phone or browser, and on iPhone web notifications need extra setup that this prototype doesn't provide. The shared demo account never sends them. An optional Telegram message exists in the code (one chat for the whole server, not enabled in the live demo).
 - Gemini's spoken Punjabi sounds unnatural, so replies default to Urdu.
 - The AI is not a medical device and can mishear or miss things. It must not be relied on for emergencies.
 
@@ -108,7 +110,7 @@ flowchart LR
 | Google Gemini Live API (`gemini-3.8-live`) | Real-time voice conversation and alert tool calls |
 | Google Gemini API (`gemini-3.5-flash-lite`, falling back to `gemini-3.5-flash`, `gemini-3.8-flash`) | Summaries and scores |
 | Supabase (Postgres, Auth) | Database and family accounts |
-| Web Push with VAPID, delivered by browser push services (for example Google FCM) | Ringing the parent's phone |
+| Web Push with VAPID, delivered by browser push services (for example Google FCM) | Ringing the parent's phone and alerting the family |
 | cron-job.org | Runs the call scheduler |
 | GitHub Actions | Backup scheduler |
 | Telegram Bot API | Optional family message (disabled in the live demo) |
@@ -162,8 +164,8 @@ npm run dev          # http://localhost:3000
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 60 offline unit tests: safety rules, script conversion, security helpers, summary validation, saving calls when the AI fails, scheduling, AI instructions |
-| `npm run test:e2e` | 24 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
+| `npm test` | 76 offline unit tests: safety rules, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 
 Also: `npm run lint` and `npm run build`.

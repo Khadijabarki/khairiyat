@@ -5,6 +5,8 @@ import { Suspense } from "react";
 import AutoRefresh from "@/components/family/AutoRefresh";
 import { Fact, RiskBadge, SampleTag, SignOutButton, yesNo } from "@/components/family/parts";
 import CallPanel from "@/components/family/CallPanel";
+import FamilyAlerts from "@/components/family/FamilyAlerts";
+import { vapidPublicKey } from "@/lib/push";
 import ShareLink from "@/components/family/ShareLink";
 import { deviceCount, latestCall } from "@/lib/calls";
 import TrendChart, { type TrendPoint } from "@/components/family/TrendChart";
@@ -118,6 +120,8 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
         </section>
       )}
 
+      <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={parent.isDemo} />
+
       <CallPanel parent={parent} devices={devices} lastCall={lastCall} />
 
       {latest ? <TodayCard checkin={latest} /> : (
@@ -189,14 +193,14 @@ function TodayCard({ checkin }: { checkin: Checkin }) {
   );
 }
 
-// A preview of the messages written for the son/daughter. Nothing is sent from this page.
+// A preview of the messages written for the son/daughter (sent as notifications if alerts are on).
 function PhonePreview({ parent, checkins }: { parent: Parent; checkins: Checkin[] }) {
   const messages = checkins.filter((c) => c.family_message).slice(0, 4);
   if (messages.length === 0) return null;
   return (
     <section className="mt-5">
       <h2 className="font-semibold text-stone-900">Message preview for {parent.childName}</h2>
-      <p className="text-xs text-stone-500">How the updates would look as messages. They are not sent yet.</p>
+      <p className="text-xs text-stone-500">The short messages written for the family. Turn on alerts above to get them as notifications.</p>
       <div className="mt-2 rounded-3xl bg-stone-800 p-3 sm:max-w-sm">
         <div className="space-y-2 rounded-2xl bg-[#e5ddd5] p-3">
           {[...messages].reverse().map((c) => (

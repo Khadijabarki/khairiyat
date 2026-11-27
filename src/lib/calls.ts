@@ -11,10 +11,11 @@
 // Prototype note: this rings the parent's installed Khairiyat app over the internet.
 // Production adds ordinary phone-line calls for parents without a smartphone.
 import "server-only";
-import { sendNotification, setVapidDetails } from "web-push";
 import { getParentById, type Parent } from "./data";
 import { db } from "./db";
 import { notifyFamily } from "./notify";
+import { sendPush, setupPush, type StoredDevice } from "./push";
+import type { PushSubscriptionInput } from "./push-endpoint";
 import { callTimeIso, isCallDue, pakistanToday } from "./time";
 
 export const RING_MINUTES = 15; // how long a call rings before it counts as not answered
@@ -35,25 +36,7 @@ export type Call = {
   devices: number;
 };
 
-// ---------- Web Push setup ----------
-let pushReady = false;
-function setupPush(): boolean {
-  if (pushReady) return true;
-  const publicKey = process.env.VAPID_PUBLIC_KEY?.trim();
-  const privateKey = process.env.VAPID_PRIVATE_KEY?.trim();
-  if (!publicKey || !privateKey) return false;
-  setVapidDetails(process.env.VAPID_SUBJECT?.trim() || "https://khairiyat.vercel.app", publicKey, privateKey);
-  pushReady = true;
-  return true;
-}
-
-export function vapidPublicKey(): string {
-  return process.env.VAPID_PUBLIC_KEY?.trim() ?? "";
-}
-
 // ---------- Devices ----------
-export type PushSubscriptionInput = { endpoint: string; keys: { p256dh: string; auth: string } };
-
 // Saves (or moves) a phone's push subscription for this parent. Keeps at most 5 phones per parent.
 export async function savePushSubscription(parent: Parent, sub: PushSubscriptionInput): Promise<boolean> {
   const supabase = db();
@@ -101,30 +84,19 @@ export async function ringParent(parent: Parent, kind: CallKind, attempt = 1): P
 
   const { data: subs } = await supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("parent_id", parent.id);
   // What the phone shows. The talk link is opened when they answer (?call= tells the screen which call).
-  const payload = JSON.stringify({
+  const payload = {
     type: "call",
     callId: call.id,
     url: `/talk/${parent.talkToken}?call=${call.id}`,
     title: "📞 خیریت کال کر رہی ہے",
     body: `${parent.childNameUr} نے آپ کا حال پوچھا ہے۔ بات کرنے کے لیے دبائیں۔`,
-  });
+  };
 
-  let reached = 0;
-  for (const sub of subs ?? []) {
-    try {
-      await sendNotification(
-        { endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } },
-        payload,
-        { TTL: RING_MINUTES * 60, urgency: "high", topic: "khairiyat-call" },
-      );
-      reached++;
-    } catch (err) {
-      const status = (err as { statusCode?: number }).statusCode;
-      // 404/410: the phone uninstalled the app or turned off notifications -> forget it.
-      if (status === 404 || status === 410) await supabase.from("push_subscriptions").delete().eq("id", sub.id);
-      else console.error("ringParent: push failed", status ?? (err instanceof Error ? err.name : "unknown"));
-    }
-  }
+  const { reached, gone } = await sendPush((subs ?? []) as StoredDevice[], payload, {
+    ttlSeconds: RING_MINUTES * 60,
+    topic: "khairiyat-call",
+  });
+  if (gone.length) await supabase.from("push_subscriptions").delete().in("id", gone);
 
   const update = reached > 0 ? { devices: reached } : { devices: 0, status: "failed" };
   await supabase.from("calls").update(update).eq("id", call.id);
@@ -199,7 +171,11 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
         reason: `${parent.nickname} ne aaj ki call ka jawab nahi diya. Please unhein khud call kar lein.`,
         source: "ai",
       });
-      await notifyFamily(`📵 ${parent.nickname} ne jawab nahi diya`, `Aaj ki Khairiyat call ka jawab nahi mila. Please ${parent.nickname} ko khud call kar lein.`);
+      await notifyFamily(parent, {
+        title: `📵 ${parent.nickname} ne jawab nahi diya`,
+        body: `Aaj ki Khairiyat call ka jawab nahi mila. Please ${parent.nickname} ko khud call kar lein.`,
+        urgent: true,
+      });
     }
   }
 

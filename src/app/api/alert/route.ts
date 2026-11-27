@@ -32,7 +32,11 @@ export async function POST(request: Request) {
 
   // Urgent: message the family immediately. Worries go into the end-of-call summary instead.
   if (rule.level === "urgent") {
-    await notifyFamily(`🚨 ${parent.nickname}: ${rule.title}`, reason || `${parent.nickname} ne abhi ${rule.title} ka bataya. Foran call karein.`);
+    await notifyFamily(parent, {
+      title: `🚨 ${parent.nickname}: ${rule.title}`,
+      body: reason || `${parent.nickname} ne abhi ${rule.title} ka bataya. Foran call karein.`,
+      urgent: true,
+    });
   }
 
   return Response.json({ ok: true }, { headers: { "Cache-Control": "no-store" } });

@@ -126,6 +126,7 @@ try {
   await submit();
   ok("sign up lands on the family page", (await url()) === "/family", await url());
   ok("new family sees the empty state", (await text()).includes("Add your first parent"));
+  ok("family can turn on alerts for this device", (await text()).includes("Alerts on this device") && (await text()).includes("Turn on alerts"));
   const session = (await send("Network.getAllCookies")).cookies.filter((c) => c.name.startsWith("sb-"));
   ok("sign-in cookie is hidden from page scripts (httpOnly)", session.length > 0 && session.every((c) => c.httpOnly));
   ok("page scripts can't read the sign-in cookie", !(await evaluate("document.cookie")).includes("sb-"));
@@ -211,6 +212,7 @@ try {
   await go("/login");
   await clickButton("Open the demo");
   ok("'Open the demo' opens the demo family", (await url()) === "/family" && (await text()).includes("Zubaida Begum"));
+  ok("the shared demo never sends alerts to anyone", (await text()).includes("Alerts are switched off in the shared demo"));
   await go("/family/ammi/edit");
   ok("demo parents show the read-only note", (await text()).includes("demo parent"));
   await fill("#nickname", "Hacked");

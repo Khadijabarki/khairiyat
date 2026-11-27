@@ -5,7 +5,11 @@
 import { randomBytes } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { requireUser } from "@/lib/auth";
+import { demoEmail, requireUser } from "@/lib/auth";
+import { removeFamilyDevices, saveFamilyDevice } from "@/lib/family-devices";
+import { readSubscription } from "@/lib/push-endpoint";
+import { FAMILY_DEVICE_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
+import { cookies } from "next/headers";
 import { deviceCount, ringParent } from "@/lib/calls";
 import { getFamilyParent } from "@/lib/data";
 import { db } from "@/lib/db";
@@ -164,6 +168,29 @@ export async function renewTalkLink(parentId: string): Promise<void> {
     .eq("family_id", user.id);
   if (error) console.error("renewTalkLink: database error", error.code);
   revalidatePath(`/family/${parent.id}`);
+}
+
+// "Send alerts to this phone": saves this browser's push subscription for the signed-in family.
+// A cookie remembers which saved device this browser is, so signing out can remove it.
+export async function enableFamilyAlerts(subscription: unknown): Promise<{ ok: boolean }> {
+  const user = await requireUser();
+  // The shared demo account never receives alerts: strangers would get each other's news.
+  if (user.email === demoEmail()) return { ok: false };
+  if (!rateLimit(`familyalerts:${user.id}`, 20, 10 * 60 * 1000)) return { ok: false };
+  const sub = readSubscription(subscription);
+  if (!sub) return { ok: false };
+  const id = await saveFamilyDevice(user.id, sub);
+  if (!id) return { ok: false };
+  (await cookies()).set(FAMILY_DEVICE_COOKIE, id, { ...SESSION_COOKIE_OPTIONS, maxAge: 365 * 24 * 60 * 60 });
+  return { ok: true };
+}
+
+export async function disableFamilyAlerts(): Promise<void> {
+  const user = await requireUser();
+  const store = await cookies();
+  const id = store.get(FAMILY_DEVICE_COOKIE)?.value;
+  if (id && /^[0-9a-f-]{36}$/.test(id)) await removeFamilyDevices(user.id, [id]);
+  store.delete(FAMILY_DEVICE_COOKIE);
 }
 
 export type CallNowState = { message?: string; ok?: boolean };

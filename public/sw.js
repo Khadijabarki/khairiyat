@@ -18,6 +18,22 @@ self.addEventListener("push", (event) => {
   } catch {
     return;
   }
+  // An alert for the son or daughter (emergency, daily summary or an unanswered call).
+  if (data.type === "family" && typeof data.url === "string" && data.url.startsWith("/family/")) {
+    event.waitUntil(
+      self.registration.showNotification(data.title || "Khairiyat", {
+        body: data.body || "",
+        icon: "/icons/icon-192.png",
+        badge: "/icons/icon-192.png",
+        // Urgent news stays on screen and vibrates strongly.
+        requireInteraction: Boolean(data.urgent),
+        vibrate: data.urgent ? [600, 200, 600, 200, 600, 200, 600] : [200],
+        data: { url: data.url, family: true },
+      }),
+    );
+    return;
+  }
+
   if (data.type !== "call" || !data.url) return;
 
   event.waitUntil(
@@ -49,8 +65,22 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const { url, callId } = event.notification.data || {};
+  const { url, callId, family } = event.notification.data || {};
   if (!url) return;
+
+  // A family alert opens that parent's dashboard.
+  if (family) {
+    event.waitUntil(
+      (async () => {
+        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+        for (const win of windows) {
+          if (new URL(win.url).pathname === url) return win.focus();
+        }
+        return self.clients.openWindow(url);
+      })(),
+    );
+    return;
+  }
 
   // "Later": tell the server, so Khairiyat calls again a bit later.
   if (event.action === "later") {

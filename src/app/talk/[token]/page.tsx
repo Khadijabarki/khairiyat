@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import TalkScreen from "@/components/TalkScreen";
-import { vapidPublicKey } from "@/lib/calls";
+import { vapidPublicKey } from "@/lib/push";
 import { getParentByTalkToken } from "@/lib/data";
 import { isValidTalkToken } from "@/lib/security";
 

@@ -2,9 +2,11 @@
 // Sign up, sign in, sign out and "open the demo" for family accounts.
 // Server Actions: Next.js only accepts them from our own pages (built-in origin check).
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
-import { authClient, demoEmail } from "@/lib/auth";
+import { authClient, currentUser, demoEmail } from "@/lib/auth";
+import { removeFamilyDevices } from "@/lib/family-devices";
+import { FAMILY_DEVICE_COOKIE } from "@/lib/session-cookie";
 import { ipFromHeaders, rateLimit } from "@/lib/security";
 
 // email is sent back after an error so the form can show it again (never the password).
@@ -67,6 +69,12 @@ export async function openDemo(): Promise<AuthState> {
 
 export async function signOut(): Promise<void> {
   const supabase = await authClient();
+  // Stop alerts on this device: someone signed out must not keep receiving the family's news.
+  const user = await currentUser();
+  const store = await cookies();
+  const deviceId = store.get(FAMILY_DEVICE_COOKIE)?.value;
+  if (user && deviceId && /^[0-9a-f-]{36}$/.test(deviceId)) await removeFamilyDevices(user.id, [deviceId]);
+  store.delete(FAMILY_DEVICE_COOKIE);
   await supabase.auth.signOut();
   redirect("/login");
 }
