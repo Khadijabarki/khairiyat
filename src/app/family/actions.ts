@@ -14,6 +14,7 @@ import { deviceCount, ringParent } from "@/lib/calls";
 import { getFamilyParent } from "@/lib/data";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/security";
+import { deleteParentMessage, markParentMessageHeard } from "@/lib/parent-messages";
 import { deleteVoice, saveVoice } from "@/lib/voice";
 import { MAX_VOICE_BYTES, looksLikeAudio, voiceSeconds, voiceType } from "@/lib/voice-rules";
 
@@ -244,6 +245,23 @@ export async function removeVoiceMessage(parentId: string): Promise<void> {
   const parent = await getFamilyParent(user.id, parentId);
   if (!parent || parent.isDemo) return;
   await deleteVoice(parent.id);
+  revalidatePath(`/family/${parent.id}`);
+}
+
+// The family pressed play on a voice message from their parent.
+export async function heardParentMessage(parentId: string, messageId: string): Promise<void> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId); // ownership check
+  if (!parent || !/^[0-9a-f-]{36}$/.test(messageId)) return;
+  await markParentMessageHeard(parent.id, messageId);
+  revalidatePath(`/family/${parent.id}`);
+}
+
+export async function removeParentMessage(parentId: string, messageId: string): Promise<void> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId);
+  if (!parent || parent.isDemo || !/^[0-9a-f-]{36}$/.test(messageId)) return;
+  await deleteParentMessage(parent.id, messageId);
   revalidatePath(`/family/${parent.id}`);
 }
 

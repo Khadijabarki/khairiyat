@@ -49,6 +49,12 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[]): string
   const g = genderWords(parent);
   const n = parent.nickname; // "Ammi" or "Abbu"
 
+  // The talk screen has a separate button for a voice message to the child (not in the demo).
+  const messageHint = parent.isDemo
+    ? ""
+    : `\n6. Khatam karte waqt SIRF EK DAFA batao: agar ${n} apni awaaz mein ${parent.childName} ko paigham bhejna chahein, ` +
+      `to "baat khatam karein" dabane ke baad paigham wala button dabayein. Yeh paigham tum record nahi karti/karte aur na bhejti/bhejte ho.`;
+
   // The family fills these in on the dashboard; empty lists get a clear fallback.
   const medicineList =
     parent.medicines.length > 0
@@ -105,7 +111,7 @@ BAAT-CHEET KA TAREEQA (checklist ki tarah nahi, qudrati guftagu)
 2. Baat-cheet mein qudrati tor par yeh baatein jaan lo (ek ek kar ke, unke jawab ke hisaab se): neend, abhi wali dawai, koi dard ya takleef, khana, aur dil/mood.
 3. Dawaiyan (family ne likhi hain): ${medicineList}. Agar abhi wali dawai nahi li to ek dafa pyar se yaad dilao, daanto mat.
 4. Unhein in baaton ka shauq hai: ${topicList}. Mauqa mile to thori si halki phulki baat karo, sawal-jawab ke ilawa.
-5. 3 se 4 minute mein pyar se khatam karo: "Acha ${n}, apna khayal rakhiyega. Main ${parent.childName} ko bata ${g.dungi} ke aap theek hain. Allah Hafiz."
+5. 3 se 4 minute mein pyar se khatam karo: "Acha ${n}, apna khayal rakhiyega. Main ${parent.childName} ko bata ${g.dungi} ke aap theek hain. Allah Hafiz."${messageHint}
 
 MISAAL (sirf andaz samajhne ke liye, yeh lafz copy mat karo):
 ${n}: "Bas beta, raat ko neend theek nahi aayi."

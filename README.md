@@ -55,6 +55,7 @@ To try the whole flow, create a family account, add a parent, open their QR link
 - **Notifications on the family's phone or computer** (optional, one tap to turn on): emergencies during the call, the summary after it, and unanswered calls
 - Live alerts during the call, 7-day charts and history; the dashboard refreshes by itself
 - **Voice messages**: the son or daughter records up to a minute; the parent hears it ("Ali ka paigham aaya hai") at the start of the next conversation, and the dashboard shows when it was heard
+- **The parent can reply in their own voice**: a separate button on the talk screen records up to a minute and sends it straight to the family, who play it on the dashboard (never sent to the AI)
 - **Monthly report for the doctor**: averages, medicine days, warnings and a day-by-day table; print it or save it as PDF
 - If the AI summary is unavailable, the check-in and its alerts are still saved and marked as needing attention
 
@@ -81,7 +82,8 @@ flowchart LR
 ## Privacy and security
 
 - **Khairiyat never stores conversation audio or transcripts.** The text is held in memory only to make the summary.
-- A family voice message is the one recording that is saved: one per parent, readable only by that family's upload and that parent's talk link, and **erased once it has been played to the end**. It is not sent to the AI.
+- A family voice message is saved: one per parent, readable only by that family's upload and that parent's talk link, and **erased once it has been played to the end**. It is not sent to the AI.
+- A parent's voice message to the family is also saved: the newest 5 per parent, playable only by the signed-in family, which can delete them. It is not sent to the AI.
 - Conversations are processed by **Google's Gemini API**. On the free tier, Google may use that content to improve its products, so please test with made-up conversations. A production service needs a paid tier with suitable data terms.
 - The parent's consent is required when they are added, and the AI says it is an AI if asked.
 - Database tables have Row Level Security on and give browser roles no access; only the server reads them, and every family page and action checks ownership.
@@ -167,7 +169,7 @@ npm run dev          # http://localhost:3000
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 90 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm test` | 91 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
 | `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 

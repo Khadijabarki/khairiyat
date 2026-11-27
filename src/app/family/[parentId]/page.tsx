@@ -9,6 +9,8 @@ import FamilyAlerts from "@/components/family/FamilyAlerts";
 import { vapidPublicKey } from "@/lib/push";
 import ShareLink from "@/components/family/ShareLink";
 import VoicePanel from "@/components/family/VoicePanel";
+import ParentMessages from "@/components/family/ParentMessages";
+import { listParentMessages } from "@/lib/parent-messages";
 import { voiceStatus } from "@/lib/voice";
 import { deviceCount, latestCall } from "@/lib/calls";
 import TrendChart, { type TrendPoint } from "@/components/family/TrendChart";
@@ -52,11 +54,12 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
   if (!parent) notFound();
   const justAdded = (await searchParams).added === "1";
 
-  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall, voice] = await Promise.all([
+  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall, voice, fromParent] = await Promise.all([
     getDashboardData(parent.id),
     deviceCount(parent.id),
     latestCall(parent.id),
     voiceStatus(parent.id),
+    listParentMessages(parent.id),
   ]);
   const latest = checkins[0];
 
@@ -126,6 +129,8 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
       <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={parent.isDemo} />
 
       <CallPanel parent={parent} devices={devices} lastCall={lastCall} />
+
+      <ParentMessages parent={parent} ready={fromParent.ready} messages={fromParent.messages} />
 
       <VoicePanel parent={parent} status={voice} />
 

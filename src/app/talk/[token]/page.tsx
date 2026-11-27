@@ -47,6 +47,7 @@ async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">
       childNameUr={parent.childNameUr}
       childPhone={parent.childPhone}
       vapidPublicKey={vapidPublicKey()}
+      canSendMessage={!parent.isDemo}
     />
   );
 }

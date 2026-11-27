@@ -146,3 +146,20 @@ create table if not exists public.voice_messages (
 alter table public.voice_messages enable row level security;
 grant select, insert, update, delete on public.voice_messages to service_role;
 revoke all on public.voice_messages from anon, authenticated;
+
+-- ---------- Voice messages from a parent to the family ----------
+-- Recorded on the talk screen, separate from the conversation (never sent to the AI).
+-- Only the newest few are kept per parent.
+create table if not exists public.parent_messages (
+  id               uuid primary key default gen_random_uuid(),
+  parent_id        text not null references public.parents (id) on delete cascade,
+  created_at       timestamptz not null default now(),
+  mime_type        text not null check (mime_type in ('audio/webm', 'audio/mp4', 'audio/ogg')),
+  audio            text not null check (char_length(audio) <= 1000000),   -- base64
+  duration_seconds smallint not null check (duration_seconds between 1 and 65),
+  heard_at         timestamptz
+);
+create index if not exists parent_messages_parent_time on public.parent_messages (parent_id, created_at desc);
+alter table public.parent_messages enable row level security;
+grant select, insert, update, delete on public.parent_messages to service_role;
+revoke all on public.parent_messages from anon, authenticated;

@@ -13,6 +13,7 @@ import { AudioPlayer, MicStream } from "@/lib/live-audio";
 import { HELPLINES, detectByKeywords, getRule, type SafetyRule } from "@/lib/safety";
 import { devanagariToRoman } from "@/lib/transliterate";
 import IncomingCall from "./talk/IncomingCall";
+import ParentMessage from "./talk/ParentMessage";
 import PhoneSetup from "./talk/PhoneSetup";
 
 // An emergency or worry noticed during the call.
@@ -45,6 +46,7 @@ type Props = {
   childNameUr: string; // shown on screen, e.g. "علی"
   childPhone: string; // for the "call your son/daughter" button; empty = no button
   vapidPublicKey: string; // lets this phone sign up for calls (Web Push); public, not a secret
+  canSendMessage: boolean; // show the "voice message to your child" button (off in the shared demo)
 };
 
 // Incoming-call helpers: call ids are UUIDs; ?call=<id> is read from the page address.
@@ -58,7 +60,9 @@ const readCallParam = (): string | null => {
 // Name of the channel that browser tabs use to tell each other a call has started.
 const CALL_CHANNEL = "khairiyat-call";
 
-export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameUr, childPhone, vapidPublicKey }: Props) {
+export default function TalkScreen(props: Props) {
+  const { talkToken, nickname, nicknameUr, childNameUr, childPhone, vapidPublicKey, canSendMessage } = props;
+  const [messageBusy, setMessageBusy] = useState(false); // recording a message for the family
   const [status, setStatus] = useState<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
   const [errorText, setErrorText] = useState("");
@@ -457,7 +461,7 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
         {!inCall ? (
           <button
             onClick={start}
-            disabled={status === "ending"}
+            disabled={status === "ending" || messageBusy}
             className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-emerald-600 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
           >
             {status === "done" ? "پھر بات کریں" : STATUS_TEXT[status === "error" ? "error" : "idle"]}
@@ -568,6 +572,15 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
           >
             بات ختم کریں
           </button>
+        )}
+        {/* The parent's own voice message to the family: separate from talking with Khairiyat. */}
+        {canSendMessage && !inCall && status !== "ending" && (
+          <ParentMessage
+            talkToken={talkToken}
+            childNameUr={childNameUr}
+            afterCall={status === "done"}
+            onBusyChange={setMessageBusy}
+          />
         )}
         {/* One-time phone setup (install the app, allow calls); hidden during a call and once done. */}
         {!inCall && status !== "ending" && <PhoneSetup talkToken={talkToken} vapidPublicKey={vapidPublicKey} />}

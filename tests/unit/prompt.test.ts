@@ -39,6 +39,11 @@ describe("buildSystemPrompt", () => {
     assert.ok(p.includes("KABHI nahi"));
   });
 
+  it("mentions the voice message button once at the end, but not in the demo", () => {
+    assert.ok(buildSystemPrompt(parent(), []).includes("paigham wala button"));
+    assert.ok(!buildSystemPrompt(parent({ isDemo: true }), []).includes("paigham wala button"));
+  });
+
   it("tells the AI the current Pakistan time", () => {
     assert.ok(buildSystemPrompt(parent(), []).includes("Abhi Pakistan mein asal waqt hai"));
   });
