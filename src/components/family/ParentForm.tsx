@@ -4,6 +4,7 @@ import { useActionState, useState } from "react";
 import type { ParentFormState } from "@/app/family/actions";
 import { useLang } from "../i18n/LangProvider";
 import { MAX_RELATION, OTHER_RELATION, RELATIONS, findRelation } from "@/lib/relations";
+import { knownUrdu } from "@/lib/urdu-names";
 
 // Plain values the form starts with (a new parent, or the one being edited).
 export type ParentFormValues = {
@@ -61,6 +62,17 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
     !startRelation ? "" : findRelation(startRelation) ? startRelation : OTHER_RELATION,
   );
 
+  // While typing an English name, write the Urdu one too if we know it. Anything the family
+  // typed in Urdu themselves is left alone; other names are filled in when saved.
+  function fillUrdu(input: HTMLInputElement, urduField: string) {
+    const target = input.form?.elements.namedItem(urduField) as HTMLInputElement | null;
+    if (!target) return;
+    if (target.value && target.value !== target.dataset.auto) return;
+    const urdu = knownUrdu(input.value) ?? "";
+    target.value = urdu;
+    target.dataset.auto = urdu;
+  }
+
   // Picking a relationship fills in the gender and a suggested way to address them.
   function chooseRelation(select: HTMLSelectElement) {
     setRelationChoice(select.value);
@@ -70,7 +82,10 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
     field("gender").value = relation.gender;
     const suggested = (value: string, key: "call" | "callUr") => !value || RELATIONS.some((x) => x[key] === value);
     if (relation.call && suggested(field("nickname").value, "call")) field("nickname").value = relation.call;
-    if (relation.callUr && suggested(field("nickname_ur").value, "callUr")) field("nickname_ur").value = relation.callUr;
+    if (relation.callUr && suggested(field("nickname_ur").value, "callUr")) {
+      field("nickname_ur").value = relation.callUr;
+      field("nickname_ur").dataset.auto = relation.callUr;
+    }
   }
   // After an error, show what was typed (the server sends it back), not the starting values.
   const values = state.values ?? { ...initialValues, childName: initialValues.childName || defaultChildName };
@@ -110,11 +125,11 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
           </div>
           <div>
             <label htmlFor="nickname" className={label}>{t("What do you call them?", "آپ انہیں کیا کہہ کر بلاتے ہیں؟")}</label>
-            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} />
+            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} onInput={(e) => fillUrdu(e.currentTarget, "nickname_ur")} />
             <p className={hint}>{t("Khairiyat will address them by this name.", "خیریت انہیں اسی نام سے پکارے گی۔")}</p>
           </div>
           <div>
-            <label htmlFor="nickname_ur" className={label}>{t("Same in Urdu (optional)", "اردو میں (اختیاری)")}</label>
+            <label htmlFor="nickname_ur" className={label}>{t("Same in Urdu (filled automatically)", "اردو میں (خود لکھا جائے گا)")}</label>
             <input id="nickname_ur" name="nickname_ur" dir="rtl" maxLength={40} defaultValue={values.nicknameUr} placeholder="امی" className={`${input} font-urdu`} />
             <p className={hint}>{t("Shown on their screen.", "ان کی اسکرین پر دکھایا جائے گا۔")}</p>
           </div>
@@ -167,10 +182,10 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="child_name" className={label}>{t("Your name", "آپ کا نام")}</label>
-            <input id="child_name" name="child_name" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} />
+            <input id="child_name" name="child_name" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} onInput={(e) => fillUrdu(e.currentTarget, "child_name_ur")} />
           </div>
           <div>
-            <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (optional)", "آپ کا نام اردو میں (اختیاری)")}</label>
+            <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (filled automatically)", "آپ کا نام اردو میں (خود لکھا جائے گا)")}</label>
             <input id="child_name_ur" name="child_name_ur" dir="rtl" maxLength={40} defaultValue={values.childNameUr} placeholder="علی" className={`${input} font-urdu`} />
           </div>
           <div className="sm:col-span-2">

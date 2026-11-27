@@ -7,6 +7,7 @@
 import "server-only";
 import { db } from "./db";
 import { readMedicines, type Medicine } from "./medicines";
+import { urduName } from "./urdu-names";
 
 export type Gender = "female" | "male";
 
@@ -81,9 +82,9 @@ function toParent(row: ParentRow): Parent {
     gender: row.gender === "male" ? "male" : "female",
     nickname: row.nickname,
     relation: row.relation ?? "",
-    nicknameUr: row.nickname_ur || row.nickname,
+    nicknameUr: urduName(row.nickname_ur, row.nickname),
     childName: row.child_name,
-    childNameUr: row.child_name_ur || row.child_name,
+    childNameUr: urduName(row.child_name_ur, row.child_name),
     childPhone: row.child_phone,
     language: row.language === "auto" || row.language === "punjabi" ? row.language : "urdu",
     medicines,

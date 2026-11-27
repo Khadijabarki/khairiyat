@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { notFound } from "next/navigation";
 import { Suspense } from "react";
 import ParentForm from "@/components/family/ParentForm";
@@ -12,6 +11,7 @@ import { photoUrls } from "@/lib/photos";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
 import SidePanel from "@/components/ui/SidePanel";
+import BackLink from "@/components/ui/BackLink";
 
 export const metadata: Metadata = { title: "Edit · Khairiyat", robots: { index: false, follow: false } };
 export const instant = false;
@@ -41,7 +41,7 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
     <div className="min-w-0">
-      <Link href={`/family/${parent.id}`} className="text-sm text-stone-500 hover:underline">{lang === "ur" ? "→" : "←"} {nickname}</Link>
+      <BackLink href={`/family/${parent.id}`} label={t("Back", "واپس")} />
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t(`Edit ${nickname}`, `${nickname} کی معلومات بدلیں`)}</h1>
       {parent.isDemo && (
         <p className="mt-3 rounded-xl bg-amber-100 p-3 text-sm text-amber-900">

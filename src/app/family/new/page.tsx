@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Suspense } from "react";
 import ParentForm, { EMPTY_PARENT } from "@/components/family/ParentForm";
 import { requireUser } from "@/lib/auth";
 import { createParent } from "../actions";
 import { getT } from "@/lib/i18n-server";
 import SidePanel from "@/components/ui/SidePanel";
+import BackLink from "@/components/ui/BackLink";
 
 export const metadata: Metadata = { title: "Add Family Member · Khairiyat", robots: { index: false, follow: false } };
 export const instant = false;
@@ -27,7 +27,7 @@ async function SignedInForm() {
   const t = await getT();
   return (
     <>
-      <Link href="/family" className="text-sm text-stone-500 hover:underline">{t("← Your family", "→ آپ کا خاندان")}</Link>
+      <BackLink href="/family" label={t("Back", "واپس")} />
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t("Add a Family Member", "والدین شامل کریں")}</h1>
       <p className="mt-1 text-stone-600">{t("Takes about two minutes. You can change everything later.", "تقریباً دو منٹ لگیں گے۔ بعد میں سب کچھ بدلا جا سکتا ہے۔")}</p>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">

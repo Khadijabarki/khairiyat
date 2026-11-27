@@ -8,6 +8,7 @@ import { TALK_LANG_COOKIE, readLang } from "@/lib/i18n";
 import { vapidPublicKey } from "@/lib/push";
 import { getParentByTalkToken } from "@/lib/data";
 import { isValidTalkToken } from "@/lib/security";
+import { currentUser } from "@/lib/auth";
 
 // Each parent's page links to their own app manifest, so "add to home screen" installs
 // an app that opens straight to this screen. noindex: never in search results.
@@ -42,6 +43,8 @@ async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">
   const parent = await getParentByTalkToken(token);
   if (!parent) notFound();
   const lang = readLang((await cookies()).get(TALK_LANG_COOKIE)?.value, "ur");
+  const viewer = await currentUser();
+  const backHref = viewer?.id === parent.familyId ? `/family/${parent.id}` : null;
 
   return (
     <LangProvider lang={lang}>
@@ -55,6 +58,7 @@ async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">
       canSendMessage={!parent.isDemo}
       nameEn={parent.nickname}
       childNameEn={parent.childName}
+      backHref={backHref}
     />
     </LangProvider>
   );

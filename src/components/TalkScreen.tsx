@@ -20,6 +20,8 @@ import { TIPS_EN } from "@/lib/safety-tips-en";
 import IncomingCall from "./talk/IncomingCall";
 import ParentMessage from "./talk/ParentMessage";
 import PhoneSetup from "./talk/PhoneSetup";
+import { isolate } from "@/lib/urdu-names";
+import BackLink from "./ui/BackLink";
 
 // An emergency or worry noticed during the call.
 // source "ai" = the AI called raise_alert; "keywords" = our backup keyword check caught it.
@@ -54,6 +56,7 @@ type Props = {
   canSendMessage: boolean; // show the "voice message to your child" button (off in the shared demo)
   nameEn: string; // the names for the English screen
   childNameEn: string;
+  backHref: string | null; // set only for the signed-in family of this person
 };
 
 // Incoming-call helpers: call ids are UUIDs; ?call=<id> is read from the page address.
@@ -74,8 +77,8 @@ export default function TalkScreen(props: Props) {
   const { talkToken, nickname, childPhone, vapidPublicKey, canSendMessage } = props;
   const { lang, t } = useLang();
   const ur = lang === "ur";
-  const parentName = ur ? props.nicknameUr : props.nameEn;
-  const childName = ur ? props.childNameUr : props.childNameEn;
+  const parentName = isolate(ur ? props.nicknameUr : props.nameEn);
+  const childName = isolate(ur ? props.childNameUr : props.childNameEn);
   const [messageBusy, setMessageBusy] = useState(false); // recording a message for the family
   const [status, setStatus] = useState<Status>("idle");
   const [turns, setTurns] = useState<Turn[]>([]);
@@ -495,7 +498,8 @@ export default function TalkScreen(props: Props) {
       <header className="w-full max-w-2xl text-center">
         {/* Language choice; hidden during a conversation so nothing distracts. */}
         {(status === "idle" || status === "done" || status === "error") && !messageBusy && (
-          <div dir="ltr" className="flex justify-end">
+          <div className="flex items-start justify-between gap-2 font-sans">
+            {props.backHref ? <BackLink href={props.backHref} label={t("Back", "واپس")} /> : <span />}
             <LanguageSwitch lang={lang} cookie={TALK_LANG_COOKIE} />
           </div>
         )}

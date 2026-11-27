@@ -12,6 +12,7 @@ import { getMonthData } from "@/lib/report-data";
 import { getRule } from "@/lib/safety";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator, type Lang } from "@/lib/i18n";
+import BackLink from "@/components/ui/BackLink";
 
 export const metadata: Metadata = { title: "Khairiyat · Doctor report", robots: { index: false, follow: false } };
 export const instant = false;
@@ -64,9 +65,7 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
   return (
     <>
       <nav className="flex flex-wrap items-center justify-between gap-3 print:hidden">
-        <Link href={`/family/${parent.id}`} className="text-sm text-stone-500 hover:underline">
-          {t(`← Back to ${nickname}`, `→ ${nickname} پر واپس`)}
-        </Link>
+        <BackLink href={`/family/${parent.id}`} label={t("Back", "واپس")} />
         <div className="flex flex-wrap items-center gap-4">
           <Link href={`/family/${parent.id}/report?month=${month.previousKey}`} className={link}>
             {t("‹ Previous month", "پچھلا مہینہ")}

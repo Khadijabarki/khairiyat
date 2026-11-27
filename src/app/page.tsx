@@ -4,6 +4,7 @@ import { DemoButton } from "@/components/auth/AuthForm";
 import LangShell from "@/components/i18n/LangShell";
 import { getT } from "@/lib/i18n-server";
 import Icon, { type IconName } from "@/components/ui/Icon";
+import FamilyIllustration from "@/components/ui/FamilyIllustration";
 
 // Start page: what Khairiyat is, sign in / sign up for families, and a one-click demo.
 export default function Home() {
@@ -25,29 +26,33 @@ async function HomeContent() {
     { icon: "chart", title: t("Clear Updates", "واضح خبر"), text: t("Short summaries, weekly trends and a report for the doctor.", "مختصر خلاصہ، ہفتے کا رجحان اور ڈاکٹر کے لیے رپورٹ۔") },
   ];
   return (
-    <main className="ui-page flex flex-col items-center justify-center gap-8 text-center">
-      <div className="max-w-xl">
-        <span className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-emerald-700 text-white shadow-lift">
-          <Icon name="heart" className="size-8" />
-        </span>
-        <p className="font-urdu mt-3 text-4xl leading-[1.9] text-emerald-800">خیریت</p>
-        <h1 className="text-4xl font-semibold text-stone-900 sm:text-5xl">Khairiyat</h1>
-        <p className="mx-auto mt-3 max-w-md text-lg text-stone-600">
-          {t(
-            "An AI that checks on elderly parents every day in Urdu, remembers how they feel, and keeps their family informed.",
-            "ایک AI ساتھی جو روز اردو میں بزرگ والدین کا حال پوچھتا ہے، پچھلی باتیں یاد رکھتا ہے اور گھر والوں کو خبر دیتا ہے۔",
-          )}
-        </p>
-      </div>
-
-      <div className="flex w-full max-w-md flex-col justify-center gap-3 sm:flex-row">
-        <Link href="/signup" className="ui-btn ui-btn-primary">
-          {t("Create a family account", "فیملی اکاؤنٹ بنائیں")}
-        </Link>
-        <Link href="/login" className="ui-btn ui-btn-secondary">
-          {t("Sign in", "سائن اِن")}
-        </Link>
-      </div>
+    <main className="ui-page flex flex-col items-center gap-10 text-center">
+      <section className="grid w-full max-w-6xl items-center gap-8 pt-10 lg:grid-cols-2 lg:gap-14 lg:pt-14">
+        <div className="lg:text-start">
+          <span className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-emerald-700 text-white shadow-lift lg:mx-0">
+            <Icon name="heart" className="size-8" />
+          </span>
+          <p className="font-urdu mt-3 text-4xl leading-[1.9] text-emerald-800">خیریت</p>
+          <h1 className="text-4xl font-semibold text-stone-900 sm:text-6xl">Khairiyat</h1>
+          <p className="mx-auto mt-4 max-w-lg text-lg text-stone-600 lg:mx-0">
+            {t(
+              "An AI that checks on the people you love every day in Urdu, remembers how they feel, and keeps their family informed.",
+              "ایک AI ساتھی جو روز اردو میں آپ کے اپنوں کا حال پوچھتا ہے، پچھلی باتیں یاد رکھتا ہے اور گھر والوں کو خبر دیتا ہے۔",
+            )}
+          </p>
+          <div className="mx-auto mt-6 flex w-full max-w-md flex-col justify-center gap-3 sm:flex-row lg:mx-0 lg:justify-start">
+            <Link href="/signup" className="ui-btn ui-btn-primary">
+              {t("Create a family account", "فیملی اکاؤنٹ بنائیں")}
+            </Link>
+            <Link href="/login" className="ui-btn ui-btn-secondary">
+              {t("Sign in", "سائن اِن")}
+            </Link>
+          </div>
+        </div>
+        <div className="mx-auto w-full max-w-xl">
+          <FamilyIllustration />
+        </div>
+      </section>
 
       <ul className="grid w-full max-w-4xl gap-4 sm:grid-cols-3">
         {features.map((f) => (

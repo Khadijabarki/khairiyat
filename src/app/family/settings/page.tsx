@@ -3,14 +3,13 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import FamilyAlerts from "@/components/family/FamilyAlerts";
 import { SignOutButton } from "@/components/family/parts";
-import LanguageSwitch from "@/components/i18n/LanguageSwitch";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { demoEmail, requireUser } from "@/lib/auth";
-import { APP_LANG_COOKIE, translator } from "@/lib/i18n";
+import { translator } from "@/lib/i18n";
 import { getLang } from "@/lib/i18n-server";
 import { vapidPublicKey } from "@/lib/push";
-import ProfileForm from "@/components/family/ProfileForm";
-import ThemeSwitch from "@/components/ui/ThemeSwitch";
+import SettingsForm from "@/components/family/SettingsForm";
+import BackLink from "@/components/ui/BackLink";
 import Avatar from "@/components/ui/Avatar";
 import SidePanel from "@/components/ui/SidePanel";
 
@@ -36,6 +35,7 @@ async function Settings() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
     <div className="min-w-0">
+      <BackLink href="/family" label={t("Back", "واپس")} />
       <p className="ui-eyebrow">{t("Your Account", "آپ کا اکاؤنٹ")}</p>
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t("Settings", "ترتیبات")}</h1>
 
@@ -47,25 +47,9 @@ async function Settings() {
             <p dir="ltr" className="truncate text-sm text-stone-600">{user.email}</p>
           </div>
         </div>
-        {user.email === demoEmail() ? (
-          <p className="mt-3 text-sm text-stone-600">{t("The demo account can't be changed.", "ڈیمو اکاؤنٹ بدلا نہیں جا سکتا۔")}</p>
-        ) : (
-          <ProfileForm name={user.name} />
+        {user.email === demoEmail() && (
+          <p className="mt-3 text-sm text-stone-600">{t("The demo account's name can't be changed.", "ڈیمو اکاؤنٹ کا نام بدلا نہیں جا سکتا۔")}</p>
         )}
-      </section>
-
-      <section className="ui-card mt-5 p-5">
-        <SectionHeading icon="settings" title={t("Appearance", "ظاہری شکل")} description={t("Light or dark, remembered on this device.", "ہلکا یا گہرا، اسی ڈیوائس پر یاد رہے گا۔")} />
-        <ThemeSwitch />
-      </section>
-
-      <section className="ui-card mt-5 p-5">
-        <SectionHeading
-          icon="globe"
-          title={t("Language", "زبان")}
-          description={t("For these family pages. Each parent's screen has its own choice.", "خاندان کے صفحات کے لیے۔ والدین کی اسکرین کی زبان الگ ہے۔")}
-          action={<LanguageSwitch lang={lang} cookie={APP_LANG_COOKIE} />}
-        />
       </section>
 
       <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={user.email === demoEmail()} />
@@ -80,7 +64,9 @@ async function Settings() {
         </p>
       </section>
 
-      <div className="mt-6">
+      <SettingsForm name={user.name} canRename={user.email !== demoEmail()} />
+
+      <div className="mt-8 flex justify-center border-t border-stone-200 pt-5">
         <SignOutButton />
       </div>
     </div>

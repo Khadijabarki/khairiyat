@@ -28,6 +28,7 @@ import {
 } from "./call-rules";
 import { readMedicines } from "./medicines";
 import { callSlots, callTimeIso, dueSlot, pakistanToday } from "./time";
+import { isolate } from "./urdu-names";
 
 const MAX_DEVICES_PER_PARENT = 5;
 const TALKED_BEFORE_MINUTES = 30; // a conversation this close before a medicine time covers it
@@ -101,7 +102,7 @@ export async function ringParent(parent: Parent, kind: CallKind, attempt = 1): P
     until,
     url: `/talk/${parent.talkToken}?call=${call.id}&until=${until}`,
     title: "📞 خیریت کال کر رہی ہے",
-    body: `${parent.childNameUr} نے آپ کا حال پوچھا ہے۔ بات کرنے کے لیے دبائیں۔`,
+    body: `${isolate(parent.childNameUr)} نے آپ کا حال پوچھا ہے۔ بات کرنے کے لیے دبائیں۔`,
   };
 
   const { reached, gone } = await sendPush((subs ?? []) as StoredDevice[], payload, {
@@ -127,7 +128,7 @@ async function showMissedCall(parent: Parent, callId: string): Promise<void> {
       callId,
       url: `/talk/${parent.talkToken}`,
       title: "📵 خیریت کی مس کال",
-      body: `${parent.childNameUr} نے آپ کا حال پوچھا تھا۔ بات کرنے کے لیے دبائیں۔`,
+      body: `${isolate(parent.childNameUr)} نے آپ کا حال پوچھا تھا۔ بات کرنے کے لیے دبائیں۔`,
     },
     { ttlSeconds: GIVE_UP_MINUTES * 60, topic: "khairiyat-call" },
   );

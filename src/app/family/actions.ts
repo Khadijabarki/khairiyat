@@ -25,6 +25,7 @@ import { MAX_PHOTO_BYTES, looksLikeJpeg } from "@/lib/photo-rules";
 import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
 import { MAX_RELATION, OTHER_RELATION, findRelation } from "@/lib/relations";
+import { toUrduName } from "@/lib/urdu-script";
 
 // On an error, the typed-in values are sent back so the form can show them again
 // (React clears a form after it is submitted).
@@ -52,6 +53,15 @@ function relationFrom(form: FormData): string {
 // True if the database doesn't have the new column yet (the SQL hasn't been run).
 const missingRelationColumn = (error: { code?: string; message?: string } | null) =>
   error?.code === "PGRST204" && Boolean(error.message?.includes("relation"));
+
+// Fills the two Urdu names, so the family only has to type in English.
+async function withUrduNames(row: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const [nicknameUr, childUr] = await Promise.all([
+    toUrduName(String(row.nickname_ur), String(row.nickname)),
+    toUrduName(String(row.child_name_ur), String(row.child_name)),
+  ]);
+  return { ...row, nickname_ur: nicknameUr, child_name_ur: childUr };
+}
 
 // What the family typed, for showing the form again after an error.
 function echoValues(form: FormData): ParentFormValues {
@@ -151,9 +161,10 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
 
   const insert = (row: Record<string, unknown>) =>
     supabase.from("parents").insert({ ...row, family_id: user.id, talk_token: newTalkToken() }).select("id").single();
-  let { data, error } = await insert(parsed.row);
+  const row = await withUrduNames(parsed.row);
+  let { data, error } = await insert(row);
   if (missingRelationColumn(error)) {
-    const { relation: _unused, ...rest } = parsed.row;
+    const { relation: _unused, ...rest } = row;
     ({ data, error } = await insert(rest));
   }
   if (error || !data) {
@@ -175,9 +186,10 @@ export async function updateParent(parentId: string, _prev: ParentFormState, for
 
   const supabase = db();
   const update = (row: Record<string, unknown>) => supabase!.from("parents").update(row).eq("id", parent.id).eq("family_id", user.id);
-  let { error } = await update(parsed.row);
+  const row = await withUrduNames(parsed.row);
+  let { error } = await update(row);
   if (missingRelationColumn(error)) {
-    const { relation: _unused, ...rest } = parsed.row;
+    const { relation: _unused, ...rest } = row;
     ({ error } = await update(rest));
   }
   if (error) {

@@ -2,6 +2,7 @@
 // Decorative by default: the text next to an icon carries the meaning.
 
 const PATHS = {
+  back: "M19 12H5m6-6-6 6 6 6",
   home: "M3 11.5 12 4l9 7.5M5.5 10v10h13V10M10 20v-5h4v5",
   family: "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7Zm-6 9c.4-3.6 2.8-5.5 6-5.5s5.6 1.9 6 5.5M16 5.2a3 3 0 0 1 0 5.6M17.5 14.8c2 .6 3.2 2.4 3.5 5.2",
   plus: "M12 5v14M5 12h14",

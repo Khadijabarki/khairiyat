@@ -28,6 +28,7 @@ import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator, type Lang, type Translate } from "@/lib/i18n";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { relationLabel } from "@/lib/relations";
+import BackLink from "@/components/ui/BackLink";
 
 export const metadata: Metadata = { title: "Khairiyat · Family", robots: { index: false, follow: false } };
 export const instant = false;
@@ -82,9 +83,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
     <>
       <AutoRefresh seconds={10} />
 
-      <Link href="/family" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">
-        {t("← Your family", "→ آپ کا خاندان")}
-      </Link>
+      <BackLink href="/family" label={t("Your family", "آپ کا خاندان")} />
       <header className="ui-card mt-1 overflow-hidden">
         <div className="flex flex-wrap items-center gap-5 bg-gradient-to-br from-sage-soft to-transparent p-5 sm:p-6">
           <Avatar name={parent.nickname} gender={parent.gender} photoUrl={photos.urls[parent.id]} size="xl" />
