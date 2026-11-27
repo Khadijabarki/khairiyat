@@ -6,8 +6,8 @@ import LangShell from "@/components/i18n/LangShell";
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
     <Suspense fallback={<main className="min-h-dvh bg-stone-50" />}>
-      <LangShell background="bg-stone-50">
-        <main className="flex min-h-dvh flex-col items-center bg-stone-50 px-4 py-6 text-stone-800">
+      <LangShell background="bg-cream">
+        <main className="ui-page flex flex-col items-center">
           <Link href="/" className="text-center">
             <span className="font-urdu block text-4xl leading-[1.9] text-emerald-800">خیریت</span>
             <span className="text-sm font-semibold tracking-wide text-stone-700">Khairiyat</span>

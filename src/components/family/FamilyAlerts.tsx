@@ -5,6 +5,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { disableFamilyAlerts, enableFamilyAlerts } from "@/app/family/actions";
 import { useLang } from "../i18n/LangProvider";
+import SectionHeading from "../ui/SectionHeading";
 
 type State = "checking" | "off" | "on" | "busy" | "blocked" | "failed";
 
@@ -96,10 +97,10 @@ export default function FamilyAlerts({ vapidPublicKey, isDemo }: { vapidPublicKe
   const canToggle = !isDemo && supported && Boolean(vapidPublicKey) && state !== "blocked" && state !== "checking";
 
   return (
-    <section className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-stone-200 bg-white p-4">
+    <section className="mt-5 flex flex-wrap items-center justify-between gap-3 ui-card p-4">
       <div className="min-w-0">
-        <h2 className="font-semibold text-stone-900">🔔 {t("Alerts on this device", "اس ڈیوائس پر الرٹ")}</h2>
-        <p role="status" className="text-sm text-stone-600">{text}</p>
+        <SectionHeading icon="bell" title={t("Alerts on This Device", "اس ڈیوائس پر الرٹ")} />
+        <p role="status" className="mt-2 text-sm text-stone-600">{text}</p>
       </div>
       {canToggle &&
         (state === "on" ? (
@@ -111,7 +112,7 @@ export default function FamilyAlerts({ vapidPublicKey, isDemo }: { vapidPublicKe
             type="button"
             onClick={turnOn}
             disabled={state === "busy"}
-            className="rounded-xl bg-stone-900 px-4 py-2 text-sm font-medium text-white hover:bg-stone-800 disabled:opacity-60"
+            className="ui-btn ui-btn-primary"
           >
             {state === "busy" ? t("Please wait…", "انتظار کریں…") : t("Turn on alerts", "الرٹ آن کریں")}
           </button>

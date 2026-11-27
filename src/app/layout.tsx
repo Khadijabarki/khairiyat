@@ -1,9 +1,15 @@
 import type { Metadata } from "next";
-import { Geist, Noto_Nastaliq_Urdu } from "next/font/google";
+import { Fraunces, Geist, Noto_Nastaliq_Urdu } from "next/font/google";
 import "./globals.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+// A warm serif for headings.
+const fraunces = Fraunces({
+  variable: "--font-fraunces",
   subsets: ["latin"],
 });
 
@@ -21,7 +27,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${urdu.variable} h-full antialiased`}>
+    <html lang="en" className={`${geistSans.variable} ${urdu.variable} ${fraunces.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">{children}</body>
     </html>
   );

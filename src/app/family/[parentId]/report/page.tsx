@@ -23,7 +23,7 @@ type ReportProps = {
 
 export default function ReportPage({ params, searchParams }: PageProps<"/family/[parentId]/report">) {
   return (
-    <main className="min-h-dvh bg-stone-50 px-4 py-6 text-stone-800 print:bg-white print:p-0">
+    <main className="ui-page print:min-h-0 print:bg-none print:bg-white print:p-0">
       <div className="mx-auto max-w-3xl">
         <Suspense fallback={<p className="text-stone-500">…</p>}>
           <DoctorReport params={params} searchParams={searchParams} />
@@ -81,7 +81,7 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
       </nav>
 
       <header className="mt-5 border-b border-stone-300 pb-3 print:mt-0">
-        <h1 className="text-2xl font-semibold text-stone-900">{t("Monthly health report", "صحت کی ماہانہ رپورٹ")} · {monthLabel}</h1>
+        <h1 className="text-2xl font-semibold text-stone-900">{t("Monthly Health Report", "صحت کی ماہانہ رپورٹ")} · {monthLabel}</h1>
         <p className="mt-1 text-stone-700">
           <span className="font-medium">{parent.name}</span> ({nickname}) · {t("prepared by Khairiyat for the family and doctor", "گھر والوں اور ڈاکٹر کے لیے خیریت کی تیار کردہ")}
         </p>
@@ -102,7 +102,7 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
           {t("The report couldn't be loaded. Please try again.", "رپورٹ نہیں کھل سکی۔ دوبارہ کوشش کریں۔")}
         </p>
       ) : report.checkins === 0 ? (
-        <p className="mt-5 rounded-2xl border border-stone-200 bg-white p-5 text-stone-600">
+        <p className="mt-5 ui-card p-5 text-stone-600">
           {t(`No check-ins in ${monthLabel}.`, `${monthLabel} میں کوئی بات نہیں ہوئی۔`)}
           {unansweredDays > 0 && t(` Days with an unanswered call: ${unansweredDays}.`, ` جن دنوں کال کا جواب نہیں ملا: ${unansweredDays}۔`)}
         </p>
@@ -115,7 +115,7 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
           )}
 
           <section className="mt-5">
-            <h2 className="font-semibold text-stone-900">{t("The month at a glance", "مہینے پر ایک نظر")}</h2>
+            <h2 className="text-lg font-semibold text-stone-900">{t("Month at a Glance", "مہینے پر ایک نظر")}</h2>
             <p className="mt-1 text-stone-700">
               {t(
                 `${report.checkins} conversation(s) on ${report.days.length} day(s). Days with an unanswered call: ${unansweredDays}. Medicine reported taken on ${report.medicine.yes} day(s) and missed on ${report.medicine.no} day(s). Ate: ${report.food.yes} day(s) yes, ${report.food.no} day(s) no.`,
@@ -130,7 +130,7 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
           </section>
 
           <section className="mt-5">
-            <h2 className="font-semibold text-stone-900">{t("Warnings noticed", "نظر آنے والے خطرے")}</h2>
+            <h2 className="text-lg font-semibold text-stone-900">{t("Health Warnings", "نظر آنے والے خطرے")}</h2>
             {report.alerts.length === 0 ? (
               <p className="mt-1 text-stone-700">{t("None recorded in the saved conversations.", "محفوظ باتوں میں کوئی نہیں۔")}</p>
             ) : (
@@ -152,8 +152,8 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
           </section>
 
           <section className="mt-5">
-            <h2 className="font-semibold text-stone-900">{t("Day by day", "دن بہ دن")}</h2>
-            <div className="mt-2 overflow-x-auto rounded-2xl border border-stone-200 bg-white print:overflow-visible">
+            <h2 className="text-lg font-semibold text-stone-900">{t("Daily Record", "دن بہ دن")}</h2>
+            <div className="mt-2 overflow-x-auto ui-card print:overflow-visible">
               <table className="w-full min-w-[620px] text-start text-sm print:min-w-0 print:text-xs">
                 <thead className="bg-stone-100 text-stone-600">
                   <tr>

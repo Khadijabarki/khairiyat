@@ -5,8 +5,7 @@ import { useActionState } from "react";
 import { openDemo, signIn, signUp, type AuthState } from "@/app/(auth)/actions";
 import { useLang } from "../i18n/LangProvider";
 
-const inputClass =
-  "mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-stone-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200";
+const inputClass = "ui-input";
 
 // Sign-in or sign-up form for a family member (the son/daughter).
 export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
@@ -15,8 +14,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
   const { t } = useLang();
 
   return (
-    <form action={action} className="w-full rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
-      <h1 className="text-xl font-semibold text-stone-900">{isSignUp ? t("Create a family account", "فیملی اکاؤنٹ بنائیں") : t("Family sign in", "فیملی سائن اِن")}</h1>
+    <form action={action} className="w-full ui-card p-6 shadow-sm">
+      <h1 className="text-2xl font-semibold text-stone-900">{isSignUp ? t("Create a Family Account", "فیملی اکاؤنٹ بنائیں") : t("Family Sign In", "فیملی سائن اِن")}</h1>
       <p className="mt-1 text-sm text-stone-600">
         {isSignUp
           ? t("For the son or daughter who wants daily updates about their parent.", "اس بیٹے یا بیٹی کے لیے جو روز والدین کی خبر چاہتے ہیں۔")
@@ -46,7 +45,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <button
         type="submit"
         disabled={pending}
-        className="mt-4 w-full rounded-xl bg-emerald-700 px-4 py-2 font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+        className="ui-btn ui-btn-primary mt-4 w-full"
       >
         {pending ? t("Please wait…", "انتظار کریں…") : isSignUp ? t("Create account", "اکاؤنٹ بنائیں") : t("Sign in", "سائن اِن")}
       </button>
@@ -67,12 +66,12 @@ export function DemoButton() {
   const [state, action, pending] = useActionState<AuthState, FormData>(openDemo, {});
   const { t } = useLang();
   return (
-    <form action={action} className="w-full rounded-2xl border border-dashed border-emerald-400 bg-emerald-50 p-5 text-center">
+    <form action={action} className="w-full rounded-2xl border border-dashed border-emerald-300 bg-sage-soft p-5 text-center">
       <p className="text-sm text-stone-700">{t("Judging or just curious? See a family with sample data, no sign-up needed.", "جج ہیں یا بس دیکھنا چاہتے ہیں؟ نمونے کے ڈیٹا والا خاندان دیکھیں، اکاؤنٹ کی ضرورت نہیں۔")}</p>
       <button
         type="submit"
         disabled={pending}
-        className="mt-3 rounded-xl bg-stone-900 px-4 py-2 font-medium text-white hover:bg-stone-800 disabled:opacity-60"
+        className="mt-3 ui-btn ui-btn-primary"
       >
         {pending ? t("Opening…", "کھل رہا ہے…") : t("Open the demo", "ڈیمو کھولیں")}
       </button>

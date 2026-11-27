@@ -6,6 +6,7 @@ import type { VoiceStatus } from "@/lib/voice";
 import VoiceRecorder from "./VoiceRecorder";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
+import SectionHeading from "../ui/SectionHeading";
 
 export default async function VoicePanel({ parent, status }: { parent: Parent; status: VoiceStatus }) {
   const lang = await getLang();
@@ -14,8 +15,8 @@ export default async function VoicePanel({ parent, status }: { parent: Parent; s
   const { message } = status;
   const waiting = Boolean(message && !message.playedAt);
   return (
-    <section className="mt-5 rounded-2xl border border-stone-200 bg-white p-5">
-      <h2 className="font-semibold text-stone-900">💌 {t("Voice message", "آواز کا پیغام")}</h2>
+    <section className="mt-5 ui-card p-5">
+      <SectionHeading icon="mic" title={t("Send a Voice Message", "آواز کا پیغام بھیجیں")} />
       <p className="text-sm text-stone-700">
         {t(`Record up to a minute. ${nickname} hears it at the start of the next conversation, then the recording is erased.`, `ایک منٹ تک ریکارڈ کریں۔ ${nickname} اگلی بات کے شروع میں سنیں گے، پھر ریکارڈنگ مٹ جائے گی۔`)}
       </p>

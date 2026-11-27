@@ -5,6 +5,7 @@ import { KEPT_MESSAGES, type ParentMessage } from "@/lib/parent-messages";
 import ParentMessagePlayer from "./ParentMessagePlayer";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
+import SectionHeading from "../ui/SectionHeading";
 
 type Props = { parent: Parent; ready: boolean; messages: ParentMessage[] };
 
@@ -13,8 +14,8 @@ export default async function ParentMessages({ parent, ready, messages }: Props)
   const t = translator(lang);
   const { nickname } = parentNames(parent, lang);
   return (
-    <section className="mt-5 rounded-2xl border border-stone-200 bg-white p-5">
-      <h2 className="font-semibold text-stone-900">🎧 {t(`Voice messages from ${nickname}`, `${nickname} کے آواز والے پیغام`)}</h2>
+    <section className="mt-5 ui-card p-5">
+      <SectionHeading icon="headphones" title={t(`Messages From ${nickname}`, `${nickname} کے پیغام`)} />
       {parent.isDemo ? (
         <p className="mt-1 text-sm text-stone-600">{t("Voice messages are switched off in the shared demo.", "مشترکہ ڈیمو میں آواز کے پیغام بند ہیں۔")}</p>
       ) : !ready ? (

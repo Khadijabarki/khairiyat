@@ -110,7 +110,7 @@ export default function VoiceRecorder({ parentId, nickname, waiting }: Props) {
     });
   }
 
-  const primary = "rounded-xl bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60";
+  const primary = "ui-btn ui-btn-primary";
   const secondary = "text-sm font-medium text-stone-600 underline-offset-2 hover:underline disabled:opacity-60";
 
   return (

@@ -3,6 +3,9 @@ import "server-only";
 import { getLang } from "./i18n-server";
 
 export const SERVER_MESSAGES_UR: Record<string, string> = {
+  "Photos can't be changed in the shared demo.": "مشترکہ ڈیمو میں تصویر نہیں بدلی جا سکتی۔",
+  "Please choose a smaller picture.": "چھوٹی تصویر چنیں۔",
+  "Please choose a picture file.": "تصویر کی فائل چنیں۔",
   "Too many attempts. Please wait a few minutes.": "بہت زیادہ کوششیں۔ چند منٹ انتظار کریں۔",
   "Please enter a valid email address.": "درست ای میل لکھیں۔",
   "Password must be 8 to 72 characters.": "پاس ورڈ 8 سے 72 حروف کا ہو۔",

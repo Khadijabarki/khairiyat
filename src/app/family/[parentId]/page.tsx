@@ -8,6 +8,10 @@ import CallPanel from "@/components/family/CallPanel";
 import FamilyAlerts from "@/components/family/FamilyAlerts";
 import { vapidPublicKey } from "@/lib/push";
 import ShareLink from "@/components/family/ShareLink";
+import MedicineCard from "@/components/family/MedicineCard";
+import Avatar from "@/components/ui/Avatar";
+import Icon from "@/components/ui/Icon";
+import { photoUrls } from "@/lib/photos";
 import VoicePanel from "@/components/family/VoicePanel";
 import ParentMessages from "@/components/family/ParentMessages";
 import { listParentMessages } from "@/lib/parent-messages";
@@ -22,6 +26,7 @@ import type { Checkin } from "@/lib/db";
 import { getRule } from "@/lib/safety";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator, type Lang, type Translate } from "@/lib/i18n";
+import SectionHeading from "@/components/ui/SectionHeading";
 
 export const metadata: Metadata = { title: "Khairiyat · Family", robots: { index: false, follow: false } };
 export const instant = false;
@@ -36,8 +41,8 @@ const COLORS = { mood: "#2a78d6", sleep: "#eb6834", pain: "#1baf7a" };
 
 export default function ParentDashboardPage({ params, searchParams }: PageProps<"/family/[parentId]">) {
   return (
-    <main className="min-h-dvh bg-stone-50 px-4 py-6 text-stone-800">
-      <div className="mx-auto max-w-3xl">
+    <main className="ui-page">
+      <div className="mx-auto max-w-5xl">
         <Suspense fallback={<p className="text-stone-500">…</p>}>
           <ParentDashboard params={params} searchParams={searchParams} />
         </Suspense>
@@ -58,12 +63,13 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
   if (!parent) notFound();
   const justAdded = (await searchParams).added === "1";
 
-  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall, voice, fromParent] = await Promise.all([
+  const [{ checkins, liveAlerts, databaseReady, nowMs }, devices, lastCall, voice, fromParent, photos] = await Promise.all([
     getDashboardData(parent.id),
     deviceCount(parent.id),
     latestCall(parent.id),
     voiceStatus(parent.id),
     listParentMessages(parent.id),
+    photoUrls([parent.id]),
   ]);
   const latest = checkins[0];
   const lang = await getLang();
@@ -75,26 +81,46 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
     <>
       <AutoRefresh seconds={10} />
 
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link href="/family" className="text-sm text-stone-500 hover:underline">
-            {t("← Your family", "→ آپ کا خاندان")}
-          </Link>
-          <h1 className="text-2xl font-semibold text-stone-900">
-            {nickname} <span className="font-normal text-stone-500">· {parent.name}</span>
-          </h1>
+      <Link href="/family" className="inline-flex min-h-10 items-center text-sm font-semibold text-emerald-700 hover:underline">
+        {t("← Your family", "→ آپ کا خاندان")}
+      </Link>
+      <header className="ui-card mt-1 overflow-hidden">
+        <div className="flex flex-wrap items-center gap-5 bg-gradient-to-br from-sage-soft to-transparent p-5 sm:p-6">
+          <Avatar name={parent.nickname} gender={parent.gender} photoUrl={photos.urls[parent.id]} size="xl" />
+          <div className="min-w-0 flex-1">
+            <p className="ui-eyebrow">{parent.gender === "female" ? t("Mother", "والدہ") : t("Father", "والد")}</p>
+            <h1 className="text-3xl font-semibold text-stone-900">
+              {nickname}
+              <span className="block font-sans text-base font-normal text-stone-600">{parent.name}</span>
+            </h1>
+            <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-stone-600">
+              {latest ? (
+                <>
+                  <RiskBadge level={latest.risk_level} />
+                  <span>{t("Last check-in:", "آخری بات:")} {formatDay(latest.created_at, lang)}, {formatTime(latest.created_at, lang)}</span>
+                </>
+              ) : (
+                <span>{t("Waiting for the first check-in", "پہلی بات کا انتظار ہے")}</span>
+              )}
+            </div>
+          </div>
         </div>
-        <div className="flex items-center gap-4">
-          <Link href={`/family/${parent.id}/edit`} className="text-sm font-medium text-stone-700 hover:underline">
-            {t("Edit", "تبدیلی")}
-          </Link>
-          <Link
-            href={`/talk/${parent.talkToken}`}
-            className="rounded-xl bg-emerald-700 px-3 py-2 text-sm font-medium text-white hover:bg-emerald-800"
-          >
+        <div className="flex flex-wrap items-center gap-2 border-t border-stone-200 p-4 sm:px-6">
+          <Link href={`/talk/${parent.talkToken}`} className="ui-btn ui-btn-primary">
+            <Icon name="screen" className="size-4" />
             {t(`Open ${nickname}'s talk screen`, `${nickname} کی بات والی اسکرین کھولیں`)}
           </Link>
-          <SignOutButton />
+          <Link href={`/family/${parent.id}/report`} className="ui-btn ui-btn-secondary">
+            <Icon name="report" className="size-4" />
+            {t("Doctor Report", "ڈاکٹر کی رپورٹ")}
+          </Link>
+          <Link href={`/family/${parent.id}/edit`} className="ui-btn ui-btn-secondary">
+            <Icon name="edit" className="size-4" />
+            {t("Edit", "تبدیلی")}
+          </Link>
+          <span className="ms-auto">
+            <SignOutButton />
+          </span>
         </div>
       </header>
 
@@ -135,28 +161,22 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
         </section>
       )}
 
-      <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={parent.isDemo} />
-
-      <CallPanel parent={parent} devices={devices} lastCall={lastCall} nowMs={nowMs} />
-
-      <ParentMessages parent={parent} ready={fromParent.ready} messages={fromParent.messages} />
-
-      <VoicePanel parent={parent} status={voice} />
-
-      <p className="mt-4">
-        <Link
-          href={`/family/${parent.id}/report`}
-          className="inline-block rounded-xl border border-stone-300 bg-white px-4 py-2 text-sm font-medium text-stone-800 hover:border-emerald-500"
-        >
-          🩺 {t("Monthly report for the doctor", "ڈاکٹر کے لیے مہینے کی رپورٹ")}
-        </Link>
-      </p>
-
-      {latest ? <TodayCard checkin={latest} {...words} /> : (
-        <p className="mt-6 rounded-2xl border border-stone-200 bg-white p-5 text-stone-600">
-          {t(`No check-ins yet. Open ${nickname}'s talk screen to have the first conversation.`, `ابھی کوئی بات نہیں ہوئی۔ پہلی بات کے لیے ${nickname} کی اسکرین کھولیں۔`)}
-        </p>
-      )}
+      <div className="grid items-start gap-x-5 lg:grid-cols-5">
+        <div className="min-w-0 lg:col-span-3">
+          {latest ? <TodayCard checkin={latest} {...words} /> : (
+            <p className="ui-card mt-5 p-5 text-stone-600">
+              {t(`No check-ins yet. Open ${nickname}'s talk screen to have the first conversation.`, `ابھی کوئی بات نہیں ہوئی۔ پہلی بات کے لیے ${nickname} کی اسکرین کھولیں۔`)}
+            </p>
+          )}
+          <CallPanel parent={parent} devices={devices} lastCall={lastCall} nowMs={nowMs} />
+          <MedicineCard parent={parent} latestTaken={latest?.medicine_taken ?? null} />
+        </div>
+        <div className="min-w-0 lg:col-span-2">
+          <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={parent.isDemo} />
+          <ParentMessages parent={parent} ready={fromParent.ready} messages={fromParent.messages} />
+          <VoicePanel parent={parent} status={voice} />
+        </div>
+      </div>
 
       {/* A new parent needs the phone set-up first; after that it moves to the bottom. */}
       {checkins.length === 0 && <ShareLink parent={parent} />}
@@ -179,9 +199,9 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
 function TodayCard({ checkin, lang, t }: { checkin: Checkin } & Words) {
   const no = t("Not discussed", "ذکر نہیں ہوا");
   return (
-    <section className="mt-5 rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
+    <section className="mt-5 ui-card p-5 shadow-sm">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className="font-semibold text-stone-900">{t("Latest check-in", "تازہ ترین بات")}</h2>
+        <SectionHeading icon="heart" title={t("Latest Check-In", "تازہ ترین بات")} />
         <div className="flex items-center gap-2">
           {checkin.is_sample && <SampleTag />}
           <RiskBadge level={checkin.risk_level} />
@@ -230,7 +250,7 @@ function PhonePreview({ childName, checkins, lang, t }: { childName: string; che
   if (messages.length === 0) return null;
   return (
     <section className="mt-5">
-      <h2 className="font-semibold text-stone-900">{t(`Message preview for ${childName}`, `${childName} کے لیے پیغام کا نمونہ`)}</h2>
+      <h2 className="text-lg font-semibold text-stone-900">{t(`Messages for ${childName}`, `${childName} کے لیے پیغام`)}</h2>
       <p className="text-xs text-stone-500">{t("The short messages written for the family. Turn on alerts above to get them as notifications.", "گھر والوں کے لیے لکھے گئے مختصر پیغام۔ نوٹیفکیشن کے لیے اوپر الرٹ آن کریں۔")}</p>
       <div className="mt-2 rounded-3xl bg-stone-800 p-3 sm:max-w-sm">
         <div className="space-y-2 rounded-2xl bg-[#e5ddd5] p-3">
@@ -270,7 +290,7 @@ function Trends({ checkins, nowMs, lang, t }: { checkins: Checkin[]; nowMs: numb
 
   return (
     <section className="mt-6">
-      <h2 className="font-semibold text-stone-900">{t("This week", "یہ ہفتہ")}</h2>
+      <h2 className="text-lg font-semibold text-stone-900">{t("Weekly Wellbeing", "اس ہفتے کی خیریت")}</h2>
       <div className="mt-2 grid gap-3 sm:grid-cols-3">
         <TrendChart title={t("Mood", "موڈ")} color={COLORS.mood} points={series((c) => c.mood)} min={1} max={5} note={t("1 = very low, 5 = very good", "1 = بہت خراب، 5 = بہت اچھا")} />
         <TrendChart title={t("Sleep", "نیند")} color={COLORS.sleep} points={series((c) => c.sleep)} min={1} max={5} note={t("1 = very bad, 5 = very good", "1 = بہت خراب، 5 = بہت اچھی")} />
@@ -284,8 +304,8 @@ function Trends({ checkins, nowMs, lang, t }: { checkins: Checkin[]; nowMs: numb
 function History({ checkins, lang, t }: { checkins: Checkin[] } & Words) {
   return (
     <section className="mt-6">
-      <h2 className="font-semibold text-stone-900">{t("History", "پچھلی باتیں")}</h2>
-      <div className="mt-2 overflow-x-auto rounded-2xl border border-stone-200 bg-white">
+      <h2 className="text-lg font-semibold text-stone-900">{t("Check-In History", "پچھلی باتیں")}</h2>
+      <div className="mt-2 overflow-x-auto ui-card">
         <table className="w-full min-w-[560px] text-start text-sm">
           <thead className="bg-stone-100 text-stone-600">
             <tr>

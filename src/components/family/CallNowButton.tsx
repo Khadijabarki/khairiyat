@@ -13,7 +13,7 @@ export default function CallNowButton({ action, nickname }: { action: (state: Ca
       <button
         type="submit"
         disabled={pending}
-        className="rounded-xl bg-emerald-700 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-800 disabled:opacity-60"
+        className="ui-btn ui-btn-primary"
       >
         {pending ? t("Calling…", "کال جا رہی ہے…") : t(`📞 Call ${nickname} now`, `📞 ${nickname} کو ابھی کال کریں`)}
       </button>

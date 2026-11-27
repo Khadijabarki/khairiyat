@@ -6,6 +6,7 @@ import type { Parent } from "@/lib/data";
 import CopyButton from "./CopyButton";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
+import SectionHeading from "../ui/SectionHeading";
 
 // Our site's own address (works locally and on Vercel).
 async function siteOrigin(): Promise<string> {
@@ -24,8 +25,8 @@ export default async function ShareLink({ parent }: { parent: Parent }) {
   const qrSvg = await QRCode.toString(link, { type: "svg", margin: 1, errorCorrectionLevel: "M", color: { dark: "#1c1917", light: "#ffffff" } });
 
   return (
-    <section className="mt-6 rounded-2xl border border-stone-200 bg-white p-5">
-      <h2 className="font-semibold text-stone-900">{t(`Set up on ${nickname}'s phone`, `${nickname} کے فون پر لگائیں`)}</h2>
+    <section className="mt-6 ui-card p-5">
+      <SectionHeading icon="screen" title={t(`Set Up ${nickname}'s Phone`, `${nickname} کے فون پر لگائیں`)} />
       <div className="mt-3 flex flex-col gap-5 sm:flex-row">
         <div className="size-40 shrink-0 rounded-xl border border-stone-200 p-2" dangerouslySetInnerHTML={{ __html: qrSvg }} aria-label={t("QR code of the talk link", "لنک کا QR کوڈ")} role="img" />
         <div className="min-w-0 space-y-3 text-sm text-stone-700">

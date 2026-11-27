@@ -38,8 +38,7 @@ export const EMPTY_PARENT: ParentFormValues = {
 };
 
 const MEDICINE_ROWS = 5;
-const input =
-  "mt-1 w-full rounded-xl border border-stone-300 px-3 py-2 text-stone-900 focus:border-emerald-600 focus:outline-none focus:ring-2 focus:ring-emerald-200";
+const input = "ui-input";
 const label = "block text-sm font-medium text-stone-700";
 const hint = "mt-1 text-xs text-stone-500";
 
@@ -60,8 +59,8 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
 
   return (
     <form key={formKey} action={formAction} className="space-y-6">
-      <fieldset className="rounded-2xl border border-stone-200 bg-white p-5">
-        <legend className="px-1 font-semibold text-stone-900">{t("Your parent", "آپ کے والدین")}</legend>
+      <fieldset className="ui-card p-5">
+        <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Family Member", "آپ کے والدین")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="name" className={label}>{t("Full name", "پورا نام")}</label>
@@ -87,8 +86,8 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
         </div>
       </fieldset>
 
-      <fieldset className="rounded-2xl border border-stone-200 bg-white p-5">
-        <legend className="px-1 font-semibold text-stone-900">{t("Daily call", "روز کی کال")}</legend>
+      <fieldset className="ui-card p-5">
+        <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Daily Call", "روز کی کال")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="checkin_time" className={label}>{t("Call time every day (Pakistan time)", "روز کال کا وقت (پاکستان)")}</label>
@@ -112,8 +111,8 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
         </div>
       </fieldset>
 
-      <fieldset className="rounded-2xl border border-stone-200 bg-white p-5">
-        <legend className="px-1 font-semibold text-stone-900">{t("Medicines", "دوائیاں")}</legend>
+      <fieldset className="ui-card p-5">
+        <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Medicines", "دوائیاں")}</legend>
         <p className={hint}>{t("Add a time next to a medicine and Khairiyat also calls then to ask about it (times less than an hour apart become one call). It never suggests new medicines.", "دوائی کے ساتھ وقت لکھیں تو خیریت اس وقت بھی کال کر کے اس کا پوچھے گی (ایک گھنٹے سے کم فرق والے وقت ایک ہی کال بنتے ہیں)۔ نئی دوائی کبھی تجویز نہیں کرتی۔")}</p>
         <div className="mt-3 space-y-2">
           {medicineRows.map((med, i) => (
@@ -128,8 +127,8 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
         <input id="topics" name="topics" maxLength={400} defaultValue={values.topics.join(", ")} placeholder="pote ki baatein, cricket, purane gaane" className={input} />
       </fieldset>
 
-      <fieldset className="rounded-2xl border border-stone-200 bg-white p-5">
-        <legend className="px-1 font-semibold text-stone-900">{t("You", "آپ")}</legend>
+      <fieldset className="ui-card p-5">
+        <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Your Details", "آپ")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="child_name" className={label}>{t("Your name", "آپ کا نام")}</label>
@@ -155,7 +154,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel 
       </label>
 
       {state.error && <p role="alert" className="text-sm text-rose-700">{state.error}</p>}
-      <button type="submit" disabled={pending} className="rounded-xl bg-emerald-700 px-5 py-2.5 font-medium text-white hover:bg-emerald-800 disabled:opacity-60">
+      <button type="submit" disabled={pending} className="ui-btn ui-btn-primary">
         {pending ? t("Saving…", "محفوظ ہو رہا ہے…") : submitLabel}
       </button>
     </form>

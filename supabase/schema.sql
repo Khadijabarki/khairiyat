@@ -163,3 +163,14 @@ create index if not exists parent_messages_parent_time on public.parent_messages
 alter table public.parent_messages enable row level security;
 grant select, insert, update, delete on public.parent_messages to service_role;
 revoke all on public.parent_messages from anon, authenticated;
+
+-- ---------- Family member photos ----------
+-- One small JPEG per parent, uploaded by their family.
+create table if not exists public.parent_photos (
+  parent_id   text primary key references public.parents (id) on delete cascade,
+  updated_at  timestamptz not null default now(),
+  image       text not null check (char_length(image) <= 200000)   -- base64 JPEG
+);
+alter table public.parent_photos enable row level security;
+grant select, insert, update, delete on public.parent_photos to service_role;
+revoke all on public.parent_photos from anon, authenticated;

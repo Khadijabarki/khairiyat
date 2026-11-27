@@ -125,8 +125,8 @@ try {
   await fill("#password", userA.password);
   await submit();
   ok("sign up lands on the family page", (await url()) === "/family", await url());
-  ok("new family sees the empty state", (await text()).includes("Add your first parent"));
-  ok("family can turn on alerts for this device", (await text()).includes("Alerts on this device") && (await text()).includes("Turn on alerts"));
+  ok("new family sees the empty state", (await text()).includes("Add Your First Parent"));
+  ok("family can turn on alerts for this device", (await text()).includes("Alerts on This Device") && (await text()).includes("Turn on alerts"));
   const session = (await send("Network.getAllCookies")).cookies.filter((c) => c.name.startsWith("sb-"));
   ok("sign-in cookie is hidden from page scripts (httpOnly)", session.length > 0 && session.every((c) => c.httpOnly));
   ok("page scripts can't read the sign-in cookie", !(await evaluate("document.cookie")).includes("sb-"));
@@ -150,7 +150,7 @@ try {
   const added = await url();
   const parentId = added.split("/")[2]?.split("?")[0];
   ok("parent saved, dashboard opens with a welcome note", added.includes("?added=1") && (await text()).includes("has been added"), added);
-  ok("QR code and private link are shown", (await text()).includes("Set up on Ammi") && (await evaluate(`!!document.querySelector("[role=img] svg")`)));
+  ok("QR code and private link are shown", (await text()).includes("Set Up Ammi") && (await evaluate(`!!document.querySelector("[role=img] svg")`)));
   const talkPath = await evaluate(
     `[...document.querySelectorAll("code")].map((c) => c.textContent).find((t) => t.includes("/talk/"))?.replace(/^https?:\\/\\/[^/]+/, "")`,
   );
@@ -179,7 +179,7 @@ try {
   const noOrigin = await fetch(`${base}/api/checkin/finish`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
   ok("API refuses requests from outside our site", noOrigin.status === 403);
   await go(`/family/${parentId}`);
-  ok("dashboard shows the new check-in", (await text()).includes("Latest check-in"));
+  ok("dashboard shows the new check-in", (await text()).includes("Latest Check-In"));
 
   await go(`/family/${parentId}/edit`);
   await fill("#nickname", "Ammi Jaan");

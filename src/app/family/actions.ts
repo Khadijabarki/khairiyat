@@ -20,6 +20,8 @@ import { MAX_VOICE_BYTES, looksLikeAudio, voiceSeconds, voiceType } from "@/lib/
 
 import type { ParentFormValues } from "@/components/family/ParentForm";
 import { say } from "@/lib/server-messages";
+import { deletePhoto, savePhoto } from "@/lib/photos";
+import { MAX_PHOTO_BYTES, looksLikeJpeg } from "@/lib/photo-rules";
 import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
 
@@ -280,6 +282,32 @@ export async function removeParentMessage(parentId: string, messageId: string): 
   if (!parent || parent.isDemo || !/^[0-9a-f-]{36}$/.test(messageId)) return;
   await deleteParentMessage(parent.id, messageId);
   revalidatePath(`/family/${parent.id}`);
+}
+
+// A photo for a family member's card (resized in the browser before it is sent).
+export async function uploadPhoto(parentId: string, form: FormData): Promise<{ ok: boolean; error?: string }> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId); // ownership check
+  if (!parent) return { ok: false, error: await say("Not found.") };
+  if (parent.isDemo) return { ok: false, error: await say("Photos can't be changed in the shared demo.") };
+  if (!rateLimit(`photo:${user.id}`, 20, 10 * 60 * 1000)) return { ok: false, error: await say("Too many attempts. Please wait a few minutes.") };
+  const file = form.get("photo");
+  if (!(file instanceof File) || file.size === 0 || file.size > MAX_PHOTO_BYTES) {
+    return { ok: false, error: await say("Please choose a smaller picture.") };
+  }
+  const bytes = new Uint8Array(await file.arrayBuffer());
+  if (!looksLikeJpeg(bytes)) return { ok: false, error: await say("Please choose a picture file.") };
+  if (!(await savePhoto(parent.id, bytes))) return { ok: false, error: await say("Could not save. Please try again.") };
+  revalidatePath("/family", "layout");
+  return { ok: true };
+}
+
+export async function removePhoto(parentId: string): Promise<void> {
+  const user = await requireUser();
+  const parent = await getFamilyParent(user.id, parentId);
+  if (!parent || parent.isDemo) return;
+  await deletePhoto(parent.id);
+  revalidatePath("/family", "layout");
 }
 
 // Removes a parent together with all their check-ins and alerts (database cascade).

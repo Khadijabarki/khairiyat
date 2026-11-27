@@ -9,6 +9,7 @@ import { callSlots } from "@/lib/time";
 import CallNowButton from "./CallNowButton";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
+import SectionHeading from "../ui/SectionHeading";
 
 const CALL_STATUS: Record<Call["status"], [en: string, ur: string]> = {
   ringing: ["📳 Ringing now…", "📳 ابھی گھنٹی بج رہی ہے…"],
@@ -34,10 +35,10 @@ export default async function CallPanel({ parent, devices, lastCall, nowMs }: Pr
   const t = translator(lang);
   const { nickname } = parentNames(parent, lang);
   return (
-    <section className="mt-5 rounded-2xl border border-stone-200 bg-white p-5">
+    <section className="mt-5 ui-card p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="space-y-1 text-sm text-stone-700">
-          <h2 className="text-base font-semibold text-stone-900">{t("Daily call", "روز کی کال")}</h2>
+          <SectionHeading icon="phone" title={t("Daily Calls", "روز کی کالز")} />
           <p>{t(`Khairiyat calls ${nickname} every day at (Pakistan time):`, `خیریت ${nickname} کو روز ان اوقات پر کال کرتی ہے (پاکستان کا وقت):`)}</p>
           <ul className="space-y-0.5">
             {callSlots(parent.checkinTime, parent.medicines).map((slot) => (

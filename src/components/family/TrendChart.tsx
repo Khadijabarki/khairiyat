@@ -41,7 +41,7 @@ export default async function TrendChart({ title, color, points, min, max, note 
   const latest = [...points].reverse().find((p) => p.value !== null);
 
   return (
-    <figure className="rounded-2xl border border-stone-200 bg-white p-4">
+    <figure className="ui-card p-4">
       <figcaption className="flex items-baseline justify-between gap-2">
         <span className="font-semibold text-stone-900">{title}</span>
         <span className="text-sm text-stone-600">

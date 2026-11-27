@@ -486,7 +486,7 @@ export default function TalkScreen(props: Props) {
     <main
       lang={lang}
       dir={ur ? "rtl" : "ltr"}
-      className={`${ur ? "font-urdu " : ""}flex min-h-dvh flex-col items-center bg-amber-50 px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-stone-800`}
+      className={`${ur ? "font-urdu " : ""}flex min-h-dvh flex-col items-center bg-cream bg-gradient-to-b from-sage-soft via-cream to-cream px-4 pt-[max(1rem,env(safe-area-inset-top))] pb-[max(1rem,env(safe-area-inset-bottom))] text-stone-800`}
     >
       {incomingCallId && !inCall && (
         <IncomingCall childName={childName} onAnswer={answerCall} onLater={() => respondToCall("decline")} />
@@ -510,7 +510,7 @@ export default function TalkScreen(props: Props) {
           <button
             onClick={start}
             disabled={status === "ending" || messageBusy}
-            className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-emerald-600 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
+            className="flex size-[max(9rem,min(66vw,40dvh,18rem))] shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500 to-emerald-800 ring-[10px] ring-emerald-100 px-6 text-center text-[clamp(1.5rem,min(9vw,6.5dvh),3rem)] leading-[1.9] text-balance text-white shadow-2xl transition active:scale-95 disabled:opacity-60"
           >
             {status === "done" ? t("Talk again", "پھر بات کریں") : t(...STATUS_TEXT[status === "error" ? "error" : "idle"])}
           </button>

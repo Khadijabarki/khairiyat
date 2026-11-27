@@ -50,7 +50,7 @@ export async function SignOutButton() {
   const t = await getT();
   return (
     <form action={signOut}>
-      <button type="submit" className="text-sm text-stone-600 underline-offset-2 hover:underline">
+      <button type="submit" className="ui-btn ui-btn-secondary">
         {t("Sign out", "سائن آؤٹ")}
       </button>
     </form>
