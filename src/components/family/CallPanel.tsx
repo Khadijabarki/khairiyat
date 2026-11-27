@@ -4,6 +4,7 @@ import { callNow } from "@/app/family/actions";
 import { formatDay, formatTime } from "@/lib/dashboard";
 import type { Call } from "@/lib/calls";
 import type { Parent } from "@/lib/data";
+import { stoppedRinging } from "@/lib/call-rules";
 import { callSlots } from "@/lib/time";
 import CallNowButton from "./CallNowButton";
 import { getLang } from "@/lib/i18n-server";
@@ -23,7 +24,12 @@ function friendlyTime(hhmm: string): string { // shown left-to-right in both lan
   return `${((h + 11) % 12) + 1}:${String(m).padStart(2, "0")} ${h < 12 ? "am" : "pm"}`;
 }
 
-export default async function CallPanel({ parent, devices, lastCall }: { parent: Parent; devices: number; lastCall: Call | null }) {
+type Props = { parent: Parent; devices: number; lastCall: Call | null; nowMs: number };
+
+export default async function CallPanel({ parent, devices, lastCall, nowMs }: Props) {
+  // A first call stays open until the retry, but it only rings for a few minutes.
+  const shownStatus =
+    lastCall?.status === "ringing" && stoppedRinging(lastCall.created_at, nowMs) ? "missed" : lastCall?.status;
   const lang = await getLang();
   const t = translator(lang);
   const { nickname } = parentNames(parent, lang);
@@ -42,7 +48,7 @@ export default async function CallPanel({ parent, devices, lastCall }: { parent:
               </li>
             ))}
           </ul>
-          <p>{t("No answer → it tries again after 15 minutes, then tells you.", "جواب نہ ملے تو 15 منٹ بعد دوبارہ کال، پھر آپ کو اطلاع۔")}</p>
+          <p>{t("A call rings for 5 minutes. No answer → it calls again 15 minutes after the first call, then tells you.", "کال 5 منٹ بجتی ہے۔ جواب نہ ملے تو پہلی کال کے 15 منٹ بعد دوبارہ کال، پھر آپ کو اطلاع۔")}</p>
           <p>
             {t(`${nickname}'s phone:`, `${nickname} کا فون:`)}{" "}
             {devices > 0 ? (
@@ -53,7 +59,7 @@ export default async function CallPanel({ parent, devices, lastCall }: { parent:
           </p>
           {lastCall && (
             <p>
-              {t("Last call:", "آخری کال:")} {formatDay(lastCall.created_at, lang)}, {formatTime(lastCall.created_at, lang)} · {t(...CALL_STATUS[lastCall.status])}
+              {t("Last call:", "آخری کال:")} {formatDay(lastCall.created_at, lang)}, {formatTime(lastCall.created_at, lang)} · {t(...CALL_STATUS[shownStatus ?? lastCall.status])}
             </p>
           )}
         </div>

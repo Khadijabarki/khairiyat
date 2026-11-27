@@ -137,7 +137,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
 
       <FamilyAlerts vapidPublicKey={vapidPublicKey()} isDemo={parent.isDemo} />
 
-      <CallPanel parent={parent} devices={devices} lastCall={lastCall} />
+      <CallPanel parent={parent} devices={devices} lastCall={lastCall} nowMs={nowMs} />
 
       <ParentMessages parent={parent} ready={fromParent.ready} messages={fromParent.messages} />
 

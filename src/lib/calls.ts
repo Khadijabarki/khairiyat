@@ -6,7 +6,8 @@
 // 2. Answer opens the talk screen and the conversation starts. Later = "declined".
 // 3. The scheduler (src/app/api/cron/tick) runs every few minutes:
 //    - rings each parent at their daily call time and at each medicine time
-//    - no answer after 15 minutes -> rings again once; still no answer -> alerts the family.
+//    - a call rings for 5 minutes; no answer -> rings again 15 minutes after the first call;
+//      still no answer after that second call -> alerts the family (see call-rules.ts).
 //
 // Prototype note: this rings the parent's installed Khairiyat app over the internet.
 // Production adds ordinary phone-line calls for parents without a smartphone.
@@ -16,12 +17,10 @@ import { db } from "./db";
 import { notifyFamily } from "./notify";
 import { sendPush, setupPush, type StoredDevice } from "./push";
 import type { PushSubscriptionInput } from "./push-endpoint";
+import { RETRY_AFTER_DECLINE_MINUTES, RING_MINUTES, SCHEDULER_GRACE_SECONDS, nextStep } from "./call-rules";
 import { readMedicines } from "./medicines";
 import { callSlots, callTimeIso, dueSlot, pakistanToday } from "./time";
 
-export const RING_MINUTES = 15; // how long a call rings before it counts as not answered
-const RETRY_AFTER_DECLINE_MINUTES = 30; // "Later" -> ring again after this long
-const MAX_ATTEMPTS = 2; // first call + one retry
 const MAX_DEVICES_PER_PARENT = 5;
 const TALKED_BEFORE_MINUTES = 30; // a conversation this close before a medicine time covers it
 
@@ -139,8 +138,9 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
   const { startIso, minutesNow } = pakistanToday(now);
 
   // 1. Unanswered calls: ringing too long, or "Later" a while ago.
-  const ringCutoff = new Date(now.getTime() - RING_MINUTES * 60 * 1000).toISOString();
-  const declineCutoff = new Date(now.getTime() - RETRY_AFTER_DECLINE_MINUTES * 60 * 1000).toISOString();
+  const before = (minutes: number) => new Date(now.getTime() - (minutes * 60 - SCHEDULER_GRACE_SECONDS) * 1000).toISOString();
+  const ringCutoff = before(RING_MINUTES);
+  const declineCutoff = before(RETRY_AFTER_DECLINE_MINUTES);
   const { data: stale } = await supabase
     .from("calls")
     .select("*")
@@ -149,21 +149,23 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
     .limit(100);
 
   for (const call of (stale as Call[]) ?? []) {
-    // Is there already a newer call for this parent today? Then this one is settled.
-    const { count: newer } = await supabase
-      .from("calls")
-      .select("id", { count: "exact", head: true })
-      .eq("parent_id", call.parent_id)
-      .gt("created_at", call.created_at);
+    const step = nextStep(call, now.getTime());
+    if (step === "wait" || step === "done") continue;
+
+    // Settled already if there is a newer call, or the parent has talked since this one.
+    const [{ count: newer }, { count: talked }] = await Promise.all([
+      supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", call.parent_id).gt("created_at", call.created_at),
+      supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", call.parent_id).eq("is_sample", false).gt("created_at", call.created_at),
+    ]);
     if (call.status === "ringing") await supabase.from("calls").update({ status: "missed" }).eq("id", call.id);
-    if (newer) continue;
+    if (newer || talked) continue;
 
     const parent = await getParentById(call.parent_id);
     if (!parent) continue;
-    if (call.attempt < MAX_ATTEMPTS) {
+    if (step === "retry") {
       await ringParent(parent, "retry", call.attempt + 1);
       report.retries++;
-    } else if (call.status === "ringing") {
+    } else {
       // Still no answer after the retry: tell the family.
       report.missed++;
       await supabase.from("live_alerts").insert({

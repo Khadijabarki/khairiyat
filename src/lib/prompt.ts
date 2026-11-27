@@ -81,7 +81,9 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[], time = 
       ? `\n   ABHI IN DAWAIYON KA WAQT HAI: ${slot.medicines.join(", ")}. Zaroor poocho ke le li ya nahi.`
       : "\n   Abhi kisi tay waqt wali dawai ka waqt nahi hai, un ka sawal zabardasti mat karo.";
     if (slot?.medicines.length && !slot.daily) {
-      medicinesNow += "\n   Yeh dawai wali chhoti call hai: salam, dawai ka poocho, thora haal poocho, aur 1-2 minute mein khatam karo.";
+      medicinesNow +=
+        "\n   Yeh dawai ke waqt wali call hai: salam ke baad pehle in dawaiyon ka poocho. Lekin sirf dawai par baat khatam mat karo: " +
+        "phir ek ek kar ke tabiyat ya dard, khana, mood, aur waqt ke hisaab se neend ya din kaisa guzra poocho, aur unke shauq ki thori si baat bhi karo.";
     }
   }
 

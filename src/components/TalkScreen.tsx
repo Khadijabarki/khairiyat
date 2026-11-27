@@ -15,6 +15,7 @@ import { devanagariToRoman } from "@/lib/transliterate";
 import LanguageSwitch from "./i18n/LanguageSwitch";
 import { useLang } from "./i18n/LangProvider";
 import { TALK_LANG_COOKIE } from "@/lib/i18n";
+import { RING_MINUTES } from "@/lib/call-rules";
 import { TIPS_EN } from "@/lib/safety-tips-en";
 import IncomingCall from "./talk/IncomingCall";
 import ParentMessage from "./talk/ParentMessage";
@@ -390,6 +391,18 @@ export default function TalkScreen(props: Props) {
     navigator.serviceWorker?.addEventListener("message", onMessage);
     return () => navigator.serviceWorker?.removeEventListener("message", onMessage);
   }, []);
+
+  // An unanswered call stops ringing by itself. Nothing is sent to the server, so the
+  // scheduler treats it as "not answered" and tries again.
+  useEffect(() => {
+    if (!incomingCallId) return;
+    const timer = setTimeout(() => {
+      setCallFromWorker(null);
+      setHandledCall(callFromLink);
+      window.history.replaceState(null, "", window.location.pathname);
+    }, RING_MINUTES * 60 * 1000);
+    return () => clearTimeout(timer);
+  }, [incomingCallId, callFromLink]);
 
   // Tells the server how the parent responded to the call, and clears ?call= from the address.
   function respondToCall(action: "answer" | "decline") {
