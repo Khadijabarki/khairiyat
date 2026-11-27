@@ -43,7 +43,8 @@ const RESPONSE_SCHEMA = {
   required: ["summary", "family_message", "risk_level", "noticed"],
 };
 
-export async function summarizeCheckin(parent: Parent, turns: Turn[]): Promise<CheckinSummary | null> {
+// budgetMs: the most time all attempts together may take.
+export async function summarizeCheckin(parent: Parent, turns: Turn[], budgetMs = 25_000): Promise<CheckinSummary | null> {
   const apiKey = process.env.GEMINI_API_KEY?.trim();
   if (!apiKey) return null;
 
@@ -70,7 +71,10 @@ ${conversation}
 
   // Try each model in turn until one answers.
   let raw: Record<string, unknown> | null = null;
+  const deadline = Date.now() + budgetMs;
   for (const model of SUMMARY_MODELS) {
+    const timeLeft = deadline - Date.now();
+    if (timeLeft < 3000) break; // not enough time for another attempt
     try {
       const result = await ai.models.generateContent({
         model,
@@ -79,7 +83,7 @@ ${conversation}
           responseMimeType: "application/json",
           responseJsonSchema: RESPONSE_SCHEMA,
           temperature: 0.2,
-          abortSignal: AbortSignal.timeout(MODEL_TIMEOUT_MS),
+          abortSignal: AbortSignal.timeout(Math.min(MODEL_TIMEOUT_MS, timeLeft)),
         },
       });
       raw = JSON.parse(result.text ?? "{}");

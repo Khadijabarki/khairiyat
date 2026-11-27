@@ -10,6 +10,7 @@ import { deviceCount, latestCall } from "@/lib/calls";
 import TrendChart, { type TrendPoint } from "@/components/family/TrendChart";
 import { dayKey, formatDay, formatTime, getDashboardData } from "@/lib/dashboard";
 import { requireUser } from "@/lib/auth";
+import { isFallbackSummary } from "@/lib/checkin";
 import { getFamilyParent, type Parent } from "@/lib/data";
 import type { Checkin } from "@/lib/db";
 import { getRule } from "@/lib/safety";
@@ -157,6 +158,11 @@ function TodayCard({ parent, checkin }: { parent: Parent; checkin: Checkin }) {
       <p className="mt-3 text-lg text-stone-900">{checkin.family_message || checkin.summary}</p>
       {checkin.family_message && <p className="mt-1 text-stone-600">{checkin.summary}</p>}
 
+      {isFallbackSummary(checkin.summary) ? (
+        <p className="mt-4 rounded-xl bg-stone-100 px-3 py-2 text-sm text-stone-700">
+          The AI summary isn&apos;t available for this call, so there are no scores. Any alerts are listed below.
+        </p>
+      ) : (
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
         <Fact label="Medicine" value={yesNo(checkin.medicine_taken, "Taken", "Missed")} />
         <Fact label="Ate" value={yesNo(checkin.ate, "Yes", "No")} />
@@ -164,6 +170,7 @@ function TodayCard({ parent, checkin }: { parent: Parent; checkin: Checkin }) {
         <Fact label="Sleep (1-5)" value={checkin.sleep?.toString() ?? "–"} />
         <Fact label="Pain (0-10)" value={checkin.pain?.toString() ?? "–"} />
       </div>
+      )}
 
       {checkin.alerts.length > 0 && (
         <ul className="mt-4 space-y-1">
@@ -213,7 +220,10 @@ function PhonePreview({ parent, checkins }: { parent: Parent; checkins: Checkin[
 // Last 7 days, one value per day (the day's latest check-in).
 function Trends({ checkins, nowMs }: { checkins: Checkin[]; nowMs: number }) {
   const byDay = new Map<string, Checkin>();
-  for (const c of checkins) if (!byDay.has(dayKey(c.created_at))) byDay.set(dayKey(c.created_at), c);
+  // Check-ins without an AI summary have no scores, so they don't hide the day's scored one.
+  for (const c of checkins) {
+    if (!isFallbackSummary(c.summary) && !byDay.has(dayKey(c.created_at))) byDay.set(dayKey(c.created_at), c);
+  }
 
   const days: { label: string; checkin: Checkin | undefined }[] = [];
   for (let i = 6; i >= 0; i--) {

@@ -1,12 +1,18 @@
 // Called by the talk screen when a conversation ends.
 // Makes the family summary, saves it (summary and scores only, never the transcript)
-// and sends the family a short message.
+// and sends the family a short message. The logic is in src/lib/checkin.ts.
+import { randomUUID } from "node:crypto";
+import { after } from "next/server";
+import { recordCheckin, type CheckinRow } from "@/lib/checkin";
 import { getParentByTalkToken } from "@/lib/data";
-import { db, type RiskLevel, type StoredAlert } from "@/lib/db";
+import { db, type StoredAlert } from "@/lib/db";
 import { notifyFamily } from "@/lib/notify";
 import { getRule } from "@/lib/safety";
 import { clientIp, isSameOrigin, isValidTalkToken, jsonError, rateLimit, readJson } from "@/lib/security";
 import { summarizeCheckin, type Turn } from "@/lib/summary";
+
+// Enough for a first summary attempt plus one background retry.
+export const maxDuration = 60;
 
 const MAX_BODY_BYTES = 64 * 1024; // a 6-minute call is far below this
 const MAX_TURNS = 300;
@@ -39,10 +45,25 @@ function readAlerts(value: unknown): StoredAlert[] {
   });
 }
 
-// The more serious of two risk levels.
-function maxRisk(a: RiskLevel, b: RiskLevel): RiskLevel {
-  const order: RiskLevel[] = ["normal", "concern", "urgent"];
-  return order[Math.max(order.indexOf(a), order.indexOf(b))];
+const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+// Saves a check-in, trying up to 3 times if the database can't be reached.
+async function saveCheckin(row: CheckinRow): Promise<boolean> {
+  const supabase = db();
+  if (!supabase) return false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { error } = await supabase.from("checkins").insert(row);
+    // 23505 = this id already exists, so an earlier try did save it.
+    if (!error || error.code === "23505") return true;
+    console.error("checkin/finish: database error", error.code || "network", "attempt", attempt);
+    if (attempt < 3) await wait(attempt * 700);
+  }
+  return false;
+}
+
+async function removeCheckin(id: string): Promise<void> {
+  const { error } = (await db()?.from("checkins").delete().eq("id", id)) ?? {};
+  if (error) console.error("checkin/finish: could not remove the basic check-in", error.code || "network");
 }
 
 export async function POST(request: Request) {
@@ -63,40 +84,17 @@ export async function POST(request: Request) {
   // Nothing was said by the parent (e.g. ended right away): nothing to save.
   if (!turns.some((t) => t.role === "ammi")) return Response.json({ saved: false, reason: "empty" });
 
-  const result = await summarizeCheckin(parent, turns);
-  if (!result) return jsonError("Could not make the summary", 502);
+  const outcome = await recordCheckin(parent, turns, callAlerts, {
+    summarize: (budgetMs) => summarizeCheckin(parent, turns, budgetMs),
+    save: saveCheckin,
+    remove: removeCheckin,
+    notify: notifyFamily,
+    later: (task) => after(task), // keeps running after the reply is sent
+    wait,
+    newId: randomUUID,
+    now: () => new Date(),
+  });
 
-  // Combine what was flagged during the call with what the summary noticed (no duplicates).
-  const alerts = [...callAlerts];
-  for (const extra of result.extraAlerts) {
-    if (!alerts.some((a) => a.category === extra.category)) alerts.push(extra);
-  }
-  // The risk level is at least as serious as the most serious alert.
-  const riskFromAlerts = alerts.reduce<RiskLevel>(
-    (level, a) => maxRisk(level, getRule(a.category)?.level ?? "normal"),
-    "normal",
-  );
-  const riskLevel = maxRisk(result.riskLevel, riskFromAlerts);
-
-  const supabase = db();
-  if (supabase) {
-    const { error } = await supabase.from("checkins").insert({
-      parent_id: parent.id,
-      summary: result.summary,
-      family_message: result.familyMessage,
-      mood: result.mood,
-      pain: result.pain,
-      sleep: result.sleep,
-      medicine_taken: result.medicineTaken,
-      ate: result.ate,
-      risk_level: riskLevel,
-      alerts,
-    });
-    if (error) console.error("checkin/finish: database error", error.code);
-  }
-
-  const icon = riskLevel === "urgent" ? "🚨" : riskLevel === "concern" ? "🟠" : "🌿";
-  await notifyFamily(`${icon} ${parent.nickname} ki aaj ki khairiyat`, result.familyMessage || result.summary);
-
-  return Response.json({ saved: Boolean(supabase), riskLevel }, { headers: { "Cache-Control": "no-store" } });
+  if (!outcome.saved) return jsonError("Could not save the check-in", 503);
+  return Response.json(outcome, { headers: { "Cache-Control": "no-store" } });
 }

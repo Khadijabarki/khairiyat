@@ -471,12 +471,12 @@ export default function TalkScreen({ talkToken, nickname, nicknameUr, childNameU
         {/* Confirms the family was told (or that it failed), after the call. */}
         {summaryState === "sent" && (
           <p className="text-center text-[clamp(0.95rem,4vw,1.1rem)] leading-[2.2] text-emerald-800">
-            ✓ {childNameUr} کو آج کا خلاصہ بھیج دیا گیا۔
+            ✓ آج کی بات {childNameUr} کے لیے محفوظ ہو گئی۔
           </p>
         )}
         {summaryState === "failed" && (
           <p className="text-center text-[clamp(0.95rem,4vw,1.1rem)] leading-[2.2] text-rose-700">
-            خلاصہ نہیں بھیجا جا سکا۔ انٹرنیٹ چیک کریں۔
+            بات محفوظ نہیں ہو سکی۔ انٹرنیٹ چیک کریں۔
           </p>
         )}
         {errorText && (

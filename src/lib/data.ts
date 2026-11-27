@@ -125,9 +125,14 @@ export async function getFamilyParent(familyId: string, parentId: string): Promi
 export async function getParentByTalkToken(token: string): Promise<Parent | null> {
   const supabase = db();
   if (!supabase || !/^[A-Za-z0-9_-]{8,64}$/.test(token)) return null;
-  const { data, error } = await supabase.from("parents").select("*").eq("talk_token", token).maybeSingle();
-  if (error) console.error("getParentByTalkToken: database error", error.code);
-  return data ? toParent(data as ParentRow) : null;
+  // Try up to 3 times: a brief connection problem must not look like a wrong link.
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const { data, error } = await supabase.from("parents").select("*").eq("talk_token", token).maybeSingle();
+    if (!error) return data ? toParent(data as ParentRow) : null;
+    console.error("getParentByTalkToken: database error", error.code || "network", "attempt", attempt);
+    if (attempt < 3) await new Promise((resolve) => setTimeout(resolve, attempt * 500));
+  }
+  return null;
 }
 
 // A parent by id, for server-only jobs (the call scheduler). Never call this with an id
