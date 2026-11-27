@@ -15,7 +15,7 @@ import { sendNotification, setVapidDetails } from "web-push";
 import { getParentById, type Parent } from "./data";
 import { db } from "./db";
 import { notifyFamily } from "./notify";
-import { isCallDue, pakistanToday } from "./time";
+import { callTimeIso, isCallDue, pakistanToday } from "./time";
 
 export const RING_MINUTES = 15; // how long a call rings before it counts as not answered
 const RETRY_AFTER_DECLINE_MINUTES = 30; // "Later" -> ring again after this long
@@ -206,11 +206,14 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
   // 2. Daily calls that are due now.
   const { data: parents } = await supabase.from("parents").select("id, checkin_time").eq("consent_given", true);
   for (const row of parents ?? []) {
-    if (!isCallDue(String(row.checkin_time).slice(0, 5), minutesNow)) continue;
+    const checkinTime = String(row.checkin_time).slice(0, 5);
+    if (!isCallDue(checkinTime, minutesNow)) continue;
 
-    // Only once a day, and not if they already talked today (e.g. opened the app themselves).
+    // Once for each call time: only calls made since today's call time count, so a family
+    // that moves the time to later in the day still gets that call.
+    // No call at all if the parent already talked today (e.g. opened the app themselves).
     const [{ count: callsToday }, { count: checkinsToday }] = await Promise.all([
-      supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", row.id).in("kind", ["scheduled", "retry"]).gte("created_at", startIso),
+      supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", row.id).in("kind", ["scheduled", "retry"]).gte("created_at", callTimeIso(startIso, checkinTime)),
       supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", row.id).eq("is_sample", false).gte("created_at", startIso),
     ]);
     if (callsToday || checkinsToday) continue;

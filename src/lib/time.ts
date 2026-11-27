@@ -17,6 +17,11 @@ export function toMinutes(hhmm: string): number {
   return h * 60 + m;
 }
 
+// The moment today's call time happens, as an ISO time. startIso is midnight in Pakistan.
+export function callTimeIso(startIso: string, checkinTime: string): string {
+  return new Date(Date.parse(startIso) + toMinutes(checkinTime) * 60 * 1000).toISOString();
+}
+
 // Is a daily call at `checkinTime` due now? From that time until `windowMinutes` later
 // (so a phone that was off for a while still gets today's call), but never the day before.
 export function isCallDue(checkinTime: string, minutesNow: number, windowMinutes = 180): boolean {
