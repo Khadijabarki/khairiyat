@@ -29,6 +29,7 @@ import { parentNames, translator, type Lang, type Translate } from "@/lib/i18n";
 import SectionHeading from "@/components/ui/SectionHeading";
 import { relationLabel } from "@/lib/relations";
 import BackLink from "@/components/ui/BackLink";
+import Loading from "@/components/ui/Loading";
 
 export const metadata: Metadata = { title: "Khairiyat · Family", robots: { index: false, follow: false } };
 export const instant = false;
@@ -45,7 +46,7 @@ export default function ParentDashboardPage({ params, searchParams }: PageProps<
   return (
     <main className="ui-page">
       <div className="mx-auto max-w-5xl">
-        <Suspense fallback={<p className="text-stone-500">…</p>}>
+        <Suspense fallback={<Loading />}>
           <ParentDashboard params={params} searchParams={searchParams} />
         </Suspense>
       </div>

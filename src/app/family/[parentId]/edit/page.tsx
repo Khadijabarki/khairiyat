@@ -12,6 +12,7 @@ import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
 import SidePanel from "@/components/ui/SidePanel";
 import BackLink from "@/components/ui/BackLink";
+import Loading from "@/components/ui/Loading";
 
 export const metadata: Metadata = { title: "Edit · Khairiyat", robots: { index: false, follow: false } };
 export const instant = false;
@@ -20,7 +21,7 @@ export default function EditParentPage({ params }: PageProps<"/family/[parentId]
   return (
     <main className="ui-page">
       <div className="mx-auto max-w-2xl lg:max-w-5xl">
-        <Suspense fallback={<p className="text-stone-500">…</p>}>
+        <Suspense fallback={<Loading />}>
           <EditForm params={params} />
         </Suspense>
       </div>
@@ -41,7 +42,7 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
     <div className="min-w-0">
-      <BackLink href={`/family/${parent.id}`} label={t("Back", "واپس")} />
+      <BackLink href={`/family/${parent.id}`} label={t(`Back to ${nickname}`, `${nickname} پر واپس`)} />
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t(`Edit ${nickname}`, `${nickname} کی معلومات بدلیں`)}</h1>
       {parent.isDemo && (
         <p className="mt-3 rounded-xl bg-amber-100 p-3 text-sm text-amber-900">

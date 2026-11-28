@@ -14,6 +14,7 @@ import { vapidPublicKey } from "@/lib/push";
 import { getLang } from "@/lib/i18n-server";
 import { parentNames, translator } from "@/lib/i18n";
 import { relationLabel } from "@/lib/relations";
+import Loading from "@/components/ui/Loading";
 
 // Private health information: never in search results.
 export const metadata: Metadata = { title: "Family · Khairiyat", robots: { index: false, follow: false } };
@@ -24,7 +25,7 @@ export default function FamilyPage() {
   return (
     <main className="ui-page">
       <div className="mx-auto max-w-5xl">
-        <Suspense fallback={<p className="text-stone-500">…</p>}>
+        <Suspense fallback={<Loading />}>
           <FamilyHome />
         </Suspense>
       </div>

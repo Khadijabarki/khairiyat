@@ -5,7 +5,7 @@ import { demoEmail, requireUser } from "@/lib/auth";
 import { createParent } from "../actions";
 import { getT } from "@/lib/i18n-server";
 import SidePanel from "@/components/ui/SidePanel";
-import BackLink from "@/components/ui/BackLink";
+import Loading from "@/components/ui/Loading";
 
 export const metadata: Metadata = { title: "Add Family Member · Khairiyat", robots: { index: false, follow: false } };
 export const instant = false;
@@ -14,7 +14,7 @@ export default function NewParentPage() {
   return (
     <main className="ui-page">
       <div className="mx-auto max-w-2xl lg:max-w-5xl">
-        <Suspense fallback={<p className="text-stone-500">…</p>}>
+        <Suspense fallback={<Loading />}>
           <SignedInForm />
         </Suspense>
       </div>
@@ -27,8 +27,7 @@ async function SignedInForm() {
   const t = await getT();
   return (
     <>
-      <BackLink href="/family" label={t("Back", "واپس")} />
-      <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t("Add a Family Member", "گھر کا فرد شامل کریں")}</h1>
+      <h1 className="text-3xl font-semibold text-stone-900">{t("Add a Family Member", "گھر کا فرد شامل کریں")}</h1>
       <p className="mt-1 text-stone-600">{t("Takes about two minutes. You can change everything later.", "تقریباً دو منٹ لگیں گے۔ بعد میں سب کچھ بدلا جا سکتا ہے۔")}</p>
       <div className="mt-6 grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
         <ParentForm action={createParent} values={EMPTY_PARENT} defaultChildName={user.name} profileName={user.email === demoEmail() ? "" : user.name} submitLabel={t("Save and get their link", "محفوظ کریں اور لنک لیں")} />

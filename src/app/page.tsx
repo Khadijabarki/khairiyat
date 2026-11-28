@@ -5,11 +5,12 @@ import LangShell from "@/components/i18n/LangShell";
 import { getT } from "@/lib/i18n-server";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import FamilyIllustration from "@/components/ui/FamilyIllustration";
+import Loading from "@/components/ui/Loading";
 
 // Start page: what Khairiyat is, sign in / sign up for families, and a one-click demo.
 export default function Home() {
   return (
-    <Suspense fallback={<main className="ui-page" />}>
+    <Suspense fallback={<Loading full />}>
       <LangShell background="bg-cream">
         <HomeContent />
       </LangShell>
@@ -70,9 +71,9 @@ async function HomeContent() {
         <DemoButton />
         <p className="mt-3 text-sm text-stone-600">
           {t("Or talk to Khairiyat as a demo parent:", "یا ڈیمو والدین بن کر خیریت سے بات کریں:")}{" "}
-          <Link href="/talk/demo-ammi" className={demoLink}>{t("Ammi", "امی")}</Link>
+          <Link href="/talk/demo-ammi?from=home" className={demoLink}>{t("Ammi", "امی")}</Link>
           {" · "}
-          <Link href="/talk/demo-abbu" className={demoLink}>{t("Abbu", "ابو")}</Link>
+          <Link href="/talk/demo-abbu?from=home" className={demoLink}>{t("Abbu", "ابو")}</Link>
         </p>
       </div>
     </main>

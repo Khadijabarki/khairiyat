@@ -9,6 +9,7 @@ import { vapidPublicKey } from "@/lib/push";
 import { getParentByTalkToken } from "@/lib/data";
 import { isValidTalkToken } from "@/lib/security";
 import { currentUser } from "@/lib/auth";
+import Loading from "@/components/ui/Loading";
 
 // Each parent's page links to their own app manifest, so "add to home screen" installs
 // an app that opens straight to this screen. noindex: never in search results.
@@ -32,7 +33,7 @@ export const instant = false;
 // The link contains a long random token, so only the family who shared it can open it.
 export default function TalkPage({ params, searchParams }: PageProps<"/talk/[token]">) {
   return (
-    <Suspense fallback={<main className="min-h-dvh bg-amber-50" />}>
+    <Suspense fallback={<Loading full />}>
       <ParentTalkScreen params={params} searchParams={searchParams} />
     </Suspense>
   );
@@ -48,9 +49,10 @@ async function ParentTalkScreen({ params, searchParams }: ScreenProps) {
   // "Back" appears only when the family opened this screen from their dashboard. The shared
   // link, the QR code, a call and the installed app show just the talk screen, even on a
   // phone where the family is signed in.
-  const fromDashboard = (await searchParams).from === "family";
-  const viewer = fromDashboard ? await currentUser() : null;
-  const backHref = viewer?.id === parent.familyId ? `/family/${parent.id}` : null;
+  // The demo screens opened from the start page also get a way back to it.
+  const from = (await searchParams).from;
+  const viewer = from === "family" ? await currentUser() : null;
+  const backHref = viewer?.id === parent.familyId ? `/family/${parent.id}` : from === "home" && parent.isDemo ? "/" : null;
 
   return (
     <LangProvider lang={lang}>

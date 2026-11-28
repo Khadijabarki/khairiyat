@@ -58,6 +58,12 @@
 }
 
 @layer base {
+  /* Keep room for the scrollbar on every screen: otherwise the whole page jumps sideways
+     when going from a short screen to a long one. */
+  html {
+    scrollbar-gutter: stable;
+  }
+
   body {
     background: var(--background);
     color: var(--foreground);
@@ -246,6 +252,18 @@
 /* Empty fields on Urdu pages start from the right; typed text sets its own direction. */
 [data-lang="ur"] .ui-input:placeholder-shown:not([type="tel"]) {
   direction: rtl;
+}
+
+/* The doctor report on paper: A4 margins, and keep the soft colours. */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm;
+  }
+  .report-sheet {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

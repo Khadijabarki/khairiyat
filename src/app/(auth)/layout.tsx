@@ -4,11 +4,12 @@ import LangShell from "@/components/i18n/LangShell";
 import BackLink from "@/components/ui/BackLink";
 import FamilyIllustration from "@/components/ui/FamilyIllustration";
 import { getT } from "@/lib/i18n-server";
+import Loading from "@/components/ui/Loading";
 
 // Shared frame for the sign-in and sign-up pages.
 export default function AuthLayout({ children }: LayoutProps<"/">) {
   return (
-    <Suspense fallback={<main className="ui-page" />}>
+    <Suspense fallback={<Loading full />}>
       <LangShell background="bg-cream">
         <AuthFrame>{children}</AuthFrame>
       </LangShell>

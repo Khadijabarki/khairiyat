@@ -9,9 +9,9 @@ import { translator } from "@/lib/i18n";
 import { getLang } from "@/lib/i18n-server";
 import { vapidPublicKey } from "@/lib/push";
 import SettingsForm from "@/components/family/SettingsForm";
-import BackLink from "@/components/ui/BackLink";
 import Avatar from "@/components/ui/Avatar";
 import SidePanel from "@/components/ui/SidePanel";
+import Loading from "@/components/ui/Loading";
 
 export const metadata: Metadata = { title: "Settings · Khairiyat", robots: { index: false, follow: false } };
 export const instant = false;
@@ -20,7 +20,7 @@ export default function SettingsPage() {
   return (
     <main className="ui-page">
       <div className="mx-auto max-w-2xl lg:max-w-5xl">
-        <Suspense fallback={<p className="text-stone-500">…</p>}>
+        <Suspense fallback={<Loading />}>
           <Settings />
         </Suspense>
       </div>
@@ -35,7 +35,6 @@ async function Settings() {
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
     <div className="min-w-0">
-      <BackLink href="/family" label={t("Back", "واپس")} />
       <p className="ui-eyebrow">{t("Your Account", "آپ کا اکاؤنٹ")}</p>
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t("Settings", "ترتیبات")}</h1>
 
