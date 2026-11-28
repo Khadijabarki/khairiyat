@@ -4,8 +4,8 @@ const URDU_LETTER = /[\u0600-\u06FF]/;
 
 export const hasUrdu = (text: string) => URDU_LETTER.test(text);
 
-// Words families use for each other, and some common names. Anything else is written in
-// Urdu by the AI when the family saves (see urdu-script.ts).
+// Words families use for each other, and some common names. Used only to show a name in
+// Urdu when the family left the Urdu box empty; any other name is shown as typed.
 const KNOWN: Record<string, string> = {
   ammi: "امی", ami: "امی", amma: "اماں", mama: "ماما", maa: "ماں",
   abbu: "ابو", abu: "ابو", abba: "ابا", baba: "بابا", papa: "پاپا",
@@ -20,7 +20,7 @@ const KNOWN: Record<string, string> = {
   zubaida: "زبیدہ", nimra: "نمرہ", rukhsana: "رخسانہ", shabeer: "شبیر", hamza: "حمزہ", zainab: "زینب",
   usman: "عثمان", mehwish: "مہوش", mehreen: "مہرین", iqra: "اقرا", bushra: "بشریٰ", saima: "سائمہ",
   kashif: "کاشف", hafsa: "حفصہ", waqas: "وقاص", sidra: "سدرہ", taimoor: "تیمور", muhammad: "محمد",
-  aslam: "اسلم", begum: "بیگم", kalsoom: "کلثوم", kulsoom: "کلثوم", kalsum: "کلثوم", kulsum: "کلثوم",
+  aslam: "اسلم", begum: "بیگم", kalsoom: "کلثوم", muskan: "مسکان", muskaan: "مسکان", malaika: "ملائکہ", malaikah: "ملائکہ", kulsoom: "کلثوم", kalsum: "کلثوم", kulsum: "کلثوم",
 };
 
 // "api" -> "Api", "muhammad aslam" -> "Muhammad Aslam". The rest of each word is left as typed.

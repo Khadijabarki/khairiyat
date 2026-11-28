@@ -1,7 +1,7 @@
 // Daily call schedule in Pakistan time.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { callSlots, callTimeIso, currentSlot, dueSlot, isCallDue, pakistanToday, toMinutes } from "../../src/lib/time";
+import { callSlots, callTimeIso, currentSlot, dueSlot, isCallDue, pakistanToday, toMinutes, urduClock } from "../../src/lib/time";
 import { readMedicines } from "../../src/lib/medicines";
 
 describe("pakistanToday", () => {
@@ -88,5 +88,25 @@ describe("readMedicines", () => {
       { name: "B", when: "raat" },
     ]);
     assert.deepEqual(readMedicines("junk"), []);
+  });
+});
+
+describe("urduClock", () => {
+  const at = (utc: string) => urduClock(new Date(`2026-11-28T${utc}:00Z`)); // Pakistan is 5 hours ahead
+
+  it("says Pakistan time in Urdu words", () => {
+    assert.equal(at("08:58"), "دن کے ایک بج کر اٹھاون منٹ");
+    assert.equal(at("03:05"), "صبح کے آٹھ بج کر پانچ منٹ");
+    assert.equal(at("12:30"), "شام کے پانچ بج کر تیس منٹ");
+    assert.equal(at("17:45"), "رات کے دس بج کر پینتالیس منٹ");
+  });
+
+  it("handles full hours, midnight and every minute", () => {
+    assert.equal(at("07:00"), "دن کے بارہ بجے");
+    assert.equal(at("19:00"), "رات کے بارہ بجے");
+    for (let minute = 1; minute < 60; minute++) {
+      const said = at(`08:${String(minute).padStart(2, "0")}`);
+      assert.ok(said.endsWith(" منٹ") && !said.includes("undefined"), said);
+    }
   });
 });

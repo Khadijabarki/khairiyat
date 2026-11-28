@@ -77,6 +77,9 @@ describe("buildSystemPrompt", () => {
   });
 
   it("tells the AI the current Pakistan time", () => {
-    assert.ok(buildSystemPrompt(parent(), []).includes("Abhi Pakistan mein asal waqt hai"));
+    const p = buildSystemPrompt(parent(), [], new Date("2026-11-28T08:58:00Z")); // 13:58 in Pakistan
+    assert.ok(p.includes("Abhi Pakistan mein asal waqt hai"));
+    assert.ok(p.includes("Urdu mein: دن کے ایک بج کر اٹھاون منٹ"));
+    assert.ok(p.includes("abhi_ka_waqt"));
   });
 });

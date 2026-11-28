@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useActionState } from "react";
 import { openDemo, signIn, signUp, type AuthState } from "@/app/(auth)/actions";
 import { useLang } from "../i18n/LangProvider";
+import { capitaliseField } from "@/lib/capitals";
 
 const inputClass = "ui-input";
 
@@ -25,7 +26,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       {isSignUp && (
         <>
           <label htmlFor="full_name" className="mt-4 block text-sm font-medium text-stone-700">{t("Your Name", "آپ کا نام")}</label>
-          <input id="full_name" name="full_name" dir="auto" autoComplete="name" maxLength={60} className={inputClass} />
+          <input id="full_name" name="full_name" data-cap="words" autoCapitalize="words" onInput={capitaliseField} onBlur={capitaliseField} dir="auto" autoComplete="name" maxLength={60} className={inputClass} />
         </>
       )}
 

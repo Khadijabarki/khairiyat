@@ -1,6 +1,6 @@
 import type { Parent, PastCheckin } from "./data";
 import { safetyPrompt } from "./safety";
-import { callSlots, currentSlot, pakistanToday } from "./time";
+import { callSlots, currentSlot, pakistanToday, urduClock } from "./time";
 import { isElder, relationLabel } from "./relations";
 
 // Urdu words that change with gender.
@@ -111,7 +111,9 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[], time = 
 
   return `
 WAQT
-Abhi Pakistan mein asal waqt hai: ${now}. Yahi sahi waqt hai.
+Abhi Pakistan mein asal waqt hai: ${now}. Urdu mein: ${urduClock(time)}. Yahi sahi (Islamabad ka) waqt hai.
+- ${n} waqt poochein to PEHLE "abhi_ka_waqt" tool call karo, phir jo Urdu waqt mile wohi lafz ba lafz bolo, jaise "ابھی دن کے ایک بج کر اٹھاون منٹ ہوئے ہیں". Andaze se ya koi aur waqt KABHI mat batao.
+- Waqt har lamha badalta hai: HAR dafa poochne par (dobara bhi, thori der baad bhi) naya tool call karo. Pehle bataya hua waqt kabhi mat dohrao.
 - Waqt ke hisaab se baat karo (subah, dopahar, shaam ya raat), aur usi waqt wali dawai ka poocho.
 - Agar ${n} waqt ya din ghalat bataayein (jaise dopahar ko kahein "raat ho gayi"), to unki baat mat maano. Pyar se upar diya gaya sahi waqt batao, jaise: "Nahi ${n}, abhi to [sahi waqt] hai." Ghalat waqt par dawai lena nuqsan de sakta hai.
 

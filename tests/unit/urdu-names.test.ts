@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { capitalName, isolate, knownUrdu, urduName } from "../../src/lib/urdu-names";
+import { capitalFirst } from "../../src/lib/capitals";
 
 describe("urdu names", () => {
   it("writes family words and common names in Urdu", () => {
@@ -11,6 +12,8 @@ describe("urdu names", () => {
     assert.equal(knownUrdu("Zubaida"), "زبیدہ");
     assert.equal(knownUrdu("nimra"), "نمرہ");
     assert.equal(knownUrdu("Kalsoom"), "کلثوم");
+    assert.equal(knownUrdu("muskan"), "مسکان");
+    assert.equal(knownUrdu("Malaika"), "ملائکہ");
     assert.equal(knownUrdu("Muhammad Aslam"), "محمد اسلم");
     assert.equal(knownUrdu("Gulrukh"), null);
     assert.equal(knownUrdu(""), null);
@@ -28,6 +31,14 @@ describe("urdu names", () => {
     assert.equal(urduName("اپیا", "api"), "اپیا");
     assert.equal(urduName("api", "api"), "آپی");
     assert.equal(urduName("", "Gulrukh"), "Gulrukh");
+  });
+
+  it("starts other text with one capital letter", () => {
+    assert.equal(capitalFirst("subah nashte ke baad"), "Subah nashte ke baad");
+    assert.equal(capitalFirst("  bp ki goli"), "  Bp ki goli");
+    assert.equal(capitalFirst("BP ki goli"), "BP ki goli");
+    assert.equal(capitalFirst("دوائی"), "دوائی");
+    assert.equal(capitalFirst("2 goliyan"), "2 goliyan");
   });
 
   it("isolates a name so it keeps its place in an Urdu sentence", () => {

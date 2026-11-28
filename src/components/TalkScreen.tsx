@@ -16,6 +16,7 @@ import LanguageSwitch from "./i18n/LanguageSwitch";
 import { useLang } from "./i18n/LangProvider";
 import { TALK_LANG_COOKIE } from "@/lib/i18n";
 import { MAX_TALK_MINUTES, RING_MINUTES } from "@/lib/call-rules";
+import { urduClock } from "@/lib/time";
 import { TIPS_EN } from "@/lib/safety-tips-en";
 import IncomingCall from "./talk/IncomingCall";
 import ParentMessage from "./talk/ParentMessage";
@@ -117,6 +118,7 @@ export default function TalkScreen(props: Props) {
   const activeRef = useRef(false); // true from the button press until the call ends
   const channelRef = useRef<BroadcastChannel | null>(null);
   const answeredCallRef = useRef<string | null>(null); // the answered call now being talked on
+  const clockOffsetRef = useRef(0); // server clock minus this phone's clock
 
   // Adds transcribed text to the conversation, joining pieces from the same speaker.
   // Any Hindi-script words are turned into Roman Urdu first (e.g. "सब" -> "sab").
@@ -153,6 +155,10 @@ export default function TalkScreen(props: Props) {
   // (SILENT was tested and made the AI stop talking after an alert, which is unsafe.)
   function handleToolCalls(calls: FunctionCall[]) {
     const responses = calls.map((call) => {
+      // Asked the time: answer with Pakistan time by the server's clock.
+      if (call.name === "abhi_ka_waqt") {
+        return { id: call.id, name: call.name, response: { waqt: urduClock(new Date(Date.now() + clockOffsetRef.current)) } };
+      }
       const args = (call.args ?? {}) as { category?: string; reason?: string };
       const rule = call.name === "raise_alert" ? getRule(String(args.category)) : undefined;
       if (rule) raiseAlert(rule, String(args.reason ?? ""), "ai");
@@ -332,7 +338,8 @@ export default function TalkScreen(props: Props) {
       });
       if (!isCurrent()) return; // cancelled while waiting
       if (!res.ok) throw new Error(`Token request failed (${res.status})`);
-      const data: { token: string; model: string } = await res.json();
+      const data: { token: string; model: string; now?: number } = await res.json();
+      clockOffsetRef.current = data.now ? data.now - Date.now() : 0;
 
       // 2. Connect to Gemini Live with the token.
       const ai = new GoogleGenAI({ apiKey: data.token, httpOptions: { apiVersion: "v1alpha" } });

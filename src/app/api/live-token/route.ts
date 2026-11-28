@@ -36,6 +36,14 @@ const RAISE_ALERT: FunctionDeclaration = {
   },
 };
 
+// Gives the exact time when the parent asks, however long the conversation has been going.
+// The talk screen answers it with Pakistan time taken from this server's clock.
+const CURRENT_TIME: FunctionDeclaration = {
+  name: "abhi_ka_waqt",
+  description: "The exact current time in Pakistan (Islamabad), in Urdu. Call it whenever the parent asks what time it is, before answering.",
+  parametersJsonSchema: { type: "object", properties: {} },
+};
+
 // Abuse limits. A real check-in needs one token, so these are generous for normal
 // use but stop a script from using up our free Gemini quota.
 const PER_IP_LIMIT = 10; // tokens per visitor...
@@ -75,7 +83,7 @@ export async function POST(request: Request) {
     systemInstruction: buildSystemPrompt(parent, recent),
     // A daughter's (female) or son's (male) voice, chosen per parent.
     speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: parent.companion.voice } } },
-    tools: [{ functionDeclarations: [RAISE_ALERT] }],
+    tools: [{ functionDeclarations: [RAISE_ALERT, CURRENT_TIME] }],
     // Ask Gemini to also send the text of what was said, so we can make a summary later.
     inputAudioTranscription: {},
     outputAudioTranscription: {},
@@ -94,7 +102,8 @@ export async function POST(request: Request) {
     });
 
     // no-store: a token must never be saved by the browser or any proxy.
-    return Response.json({ token: token.name, model: LIVE_MODEL }, { headers: { "Cache-Control": "no-store" } });
+    // "now" lets the screen tell the time by the server's clock, even if the phone's is wrong.
+    return Response.json({ token: token.name, model: LIVE_MODEL, now: Date.now() }, { headers: { "Cache-Control": "no-store" } });
   } catch (err) {
     // Log only the error type and status: never the message (it can contain the API key)
     // and never the prompt (it contains the parent's details).

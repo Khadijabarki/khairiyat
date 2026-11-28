@@ -26,8 +26,8 @@ import { MAX_PHOTO_BYTES, looksLikeJpeg } from "@/lib/photo-rules";
 import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
 import { MAX_RELATION, OTHER_RELATION, findRelation } from "@/lib/relations";
-import { toUrduName } from "@/lib/urdu-script";
 import { capitalName } from "@/lib/urdu-names";
+import { capitalFirst } from "@/lib/capitals";
 
 // On an error, the typed-in values are sent back so the form can show them again
 // (React clears a form after it is submitted).
@@ -48,7 +48,7 @@ function text(form: FormData, key: string, max: number): string {
 // The chosen relationship, or the family's own words when they picked "Other".
 function relationFrom(form: FormData): string {
   const chosen = text(form, "relation", MAX_RELATION);
-  if (chosen === OTHER_RELATION) return text(form, "relation_other", MAX_RELATION);
+  if (chosen === OTHER_RELATION) return capitalFirst(text(form, "relation_other", MAX_RELATION));
   return findRelation(chosen) ? chosen : "";
 }
 
@@ -80,15 +80,6 @@ const saveProblem = (error: SaveError) =>
   missingColumn(error, "ring_minutes")
     ? "The 2-minute choice can't be saved yet. Run supabase/schema.sql in Supabase first, or choose 5 minutes."
     : "Could not save. Please try again.";
-
-// Fills the two Urdu names, so the family only has to type in English.
-async function withUrduNames(row: Record<string, unknown>): Promise<Record<string, unknown>> {
-  const [nicknameUr, childUr] = await Promise.all([
-    toUrduName(String(row.nickname_ur), String(row.nickname)),
-    toUrduName(String(row.child_name_ur), String(row.child_name)),
-  ]);
-  return { ...row, nickname_ur: nicknameUr, child_name_ur: childUr };
-}
 
 // What the family typed, for showing the form again after an error.
 function echoValues(form: FormData): ParentFormValues {
@@ -142,10 +133,11 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
   for (let i = 0; i < MAX_MEDICINES; i++) {
     const medName = text(form, `med_name_${i}`, 60);
     const time = text(form, `med_time_${i}`, 5);
-    if (medName) medicines.push({ name: medName, when: text(form, `med_when_${i}`, 60), ...(isClockTime(time) ? { time } : {}) });
+    const when = capitalFirst(text(form, `med_when_${i}`, 60));
+    if (medName) medicines.push({ name: capitalFirst(medName), when, ...(isClockTime(time) ? { time } : {}) });
   }
 
-  const topics = text(form, "topics", 400)
+  const topics = capitalFirst(text(form, "topics", 400))
     .split(",")
     .map((t) => t.trim().slice(0, 40))
     .filter(Boolean)
@@ -190,7 +182,7 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
 
   const insert = (row: Record<string, unknown>) =>
     supabase.from("parents").insert({ ...row, family_id: user.id, talk_token: newTalkToken() }).select("id").single();
-  const row = await withUrduNames(parsed.row);
+  const row = parsed.row;
   const { data, error } = await saveRow(row, insert);
   if (error || !data) {
     console.error("createParent: database error", error?.code ?? "");
@@ -211,7 +203,7 @@ export async function updateParent(parentId: string, _prev: ParentFormState, for
 
   const supabase = db();
   const update = (row: Record<string, unknown>) => supabase!.from("parents").update(row).eq("id", parent.id).eq("family_id", user.id);
-  const row = await withUrduNames(parsed.row);
+  const row = parsed.row;
   const { error } = await saveRow(row, update);
   if (error) {
     console.error("updateParent: database error", error.code);

@@ -3,9 +3,9 @@
 import { useActionState, useState } from "react";
 import type { ParentFormState } from "@/app/family/actions";
 import { useLang } from "../i18n/LangProvider";
+import { capitaliseField } from "@/lib/capitals";
 import { RETRY_MINUTES, RING_MINUTES, SHORT_RING_MINUTES, type RingMinutes } from "@/lib/call-rules";
 import { MAX_RELATION, OTHER_RELATION, RELATIONS, findRelation } from "@/lib/relations";
-import { knownUrdu } from "@/lib/urdu-names";
 
 // Plain values the form starts with (a new parent, or the one being edited).
 export type ParentFormValues = {
@@ -65,14 +65,13 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
     !startRelation ? "" : findRelation(startRelation) ? startRelation : OTHER_RELATION,
   );
 
-  // The Urdu name follows the English one: written at once if we know it, otherwise emptied
-  // so it is filled in when saved. Urdu the family types now is left alone, and going back
-  // to the saved English name brings back its saved Urdu.
-  function fillUrdu(input: HTMLInputElement, urduField: string, saved: { name: string; urdu: string }) {
+  // Urdu names are typed by the family (optional). If the English name is changed, the Urdu
+  // saved for the old name is emptied, so the screen can never show a different name.
+  function keepUrduHonest(input: HTMLInputElement, urduField: string, saved: { name: string; urdu: string }) {
     const target = input.form?.elements.namedItem(urduField) as HTMLInputElement | null;
     if (!target || target.dataset.typed) return;
-    const unchanged = saved.name !== "" && input.value.trim().toLowerCase() === saved.name.trim().toLowerCase();
-    target.value = unchanged ? saved.urdu : (knownUrdu(input.value) ?? "");
+    const unchanged = input.value.trim().toLowerCase() === saved.name.trim().toLowerCase();
+    target.value = unchanged ? saved.urdu : "";
   }
   // Remembers that the family wrote this Urdu themselves (emptying the box undoes that).
   function markTyped(input: HTMLInputElement) {
@@ -90,10 +89,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
     field("gender").value = relation.gender;
     const suggested = (value: string, key: "call" | "callUr") => !value || RELATIONS.some((x) => x[key] === value);
     if (relation.call && suggested(field("nickname").value, "call")) field("nickname").value = relation.call;
-    // Only together with the English word it belongs to, and never over typed Urdu.
-    if (relation.callUr && field("nickname").value === relation.call && !field("nickname_ur").dataset.typed) {
-      field("nickname_ur").value = relation.callUr;
-    }
+    keepUrduHonest(field("nickname"), "nickname_ur", savedNickname);
   }
   // After an error, show what was typed (the server sends it back), not the starting values.
   const values = state.values ?? { ...initialValues, childName: initialValues.childName || defaultChildName };
@@ -102,13 +98,13 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
   const medicineRows = Array.from({ length: Math.max(MEDICINE_ROWS, values.medicines.length) }, (_, i) => values.medicines[i]);
 
   return (
-    <form key={formKey} action={formAction} className="space-y-6">
+    <form key={formKey} action={formAction} onInput={capitaliseField} onBlur={capitaliseField} className="space-y-6">
       <fieldset className="ui-card p-5">
         <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Family Member", "آپ کے والدین")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="name" className={label}>{t("Full name", "پورا نام")}</label>
-            <input id="name" name="name" dir="auto" required maxLength={80} defaultValue={values.name} placeholder="Zubaida Begum" className={input} />
+            <input id="name" name="name" data-cap="words" autoCapitalize="words" dir="auto" required maxLength={80} defaultValue={values.name} placeholder={t("e.g. Zubaida Begum", "مثلاً زبیدہ بیگم")} spellCheck={false} className={input} />
           </div>
           <div>
             <label htmlFor="relation" className={label}>{t("Relationship", "رشتہ")}</label>
@@ -120,7 +116,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
               <option value={OTHER_RELATION}>{t("Other (write it)", "کوئی اور (خود لکھیں)")}</option>
             </select>
             {relationChoice === OTHER_RELATION && (
-              <input name="relation_other" dir="auto" maxLength={MAX_RELATION} defaultValue={findRelation(startRelation) ? "" : startRelation} placeholder={t("e.g. Neighbour, Teacher", "مثلاً پڑوسی، استاد")} aria-label={t("Write the relationship", "رشتہ لکھیں")} className={input} />
+              <input name="relation_other" data-cap="first" autoCapitalize="sentences" dir="auto" maxLength={MAX_RELATION} defaultValue={findRelation(startRelation) ? "" : startRelation} placeholder={t("e.g. Neighbour, Teacher", "مثلاً پڑوسی، استاد")} aria-label={t("Write the relationship", "رشتہ لکھیں")} className={input} />
             )}
           </div>
           <div>
@@ -133,13 +129,13 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
           </div>
           <div>
             <label htmlFor="nickname" className={label}>{t("What do you call them?", "آپ انہیں کیا کہہ کر بلاتے ہیں؟")}</label>
-            <input id="nickname" name="nickname" dir="auto" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "nickname_ur", savedNickname)} />
+            <input id="nickname" name="nickname" data-cap="words" dir="auto" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} autoCapitalize="words" spellCheck={false} onInput={(e) => keepUrduHonest(e.currentTarget, "nickname_ur", savedNickname)} />
             <p className={hint}>{t("Khairiyat will address them by this name.", "خیریت انہیں اسی نام سے پکارے گی۔")}</p>
           </div>
           <div>
-            <label htmlFor="nickname_ur" className={label}>{t("Same in Urdu (filled automatically)", "اردو میں (خود لکھا جائے گا)")}</label>
-            <input id="nickname_ur" name="nickname_ur" dir="rtl" maxLength={40} defaultValue={values.nicknameUr} placeholder="امی" className={`${input} font-urdu`} onInput={(e) => markTyped(e.currentTarget)} />
-            <p className={hint}>{t("Shown on their screen.", "ان کی اسکرین پر دکھایا جائے گا۔")}</p>
+            <label htmlFor="nickname_ur" className={label}>{t("Same in Urdu (optional)", "اردو میں (اختیاری)")}</label>
+            <input id="nickname_ur" name="nickname_ur" dir="rtl" lang="ur" maxLength={40} defaultValue={values.nicknameUr} placeholder={t("Urdu name", "اردو نام")} className={`${input} font-urdu`} onInput={(e) => markTyped(e.currentTarget)} />
+            <p className={hint}>{t("Type it with an Urdu keyboard, or leave it empty.", "اردو کی بورڈ سے لکھیں، یا خالی چھوڑ دیں۔")}</p>
           </div>
         </div>
       </fieldset>
@@ -187,14 +183,14 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="mt-3 space-y-2">
           {medicineRows.map((med, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_9rem]">
-              <input name={`med_name_${i}`} dir="auto" maxLength={60} defaultValue={med?.name ?? ""} placeholder={i === 0 ? "BP ki goli" : t("Medicine", "دوائی")} aria-label={`${t("Medicine", "دوائی")} ${i + 1}`} className={input} />
-              <input name={`med_when_${i}`} dir="auto" maxLength={60} defaultValue={med?.when ?? ""} placeholder={i === 0 ? "subah nashte ke baad" : t("When", "کب")} aria-label={`${t("When to take medicine", "دوائی کا وقت")} ${i + 1}`} className={input} />
+              <input name={`med_name_${i}`} data-cap="first" autoCapitalize="sentences" dir="auto" maxLength={60} defaultValue={med?.name ?? ""} placeholder={i === 0 ? "BP ki goli" : t("Medicine", "دوائی")} aria-label={`${t("Medicine", "دوائی")} ${i + 1}`} className={input} />
+              <input name={`med_when_${i}`} data-cap="first" autoCapitalize="sentences" dir="auto" maxLength={60} defaultValue={med?.when ?? ""} placeholder={i === 0 ? "subah nashte ke baad" : t("When", "کب")} aria-label={`${t("When to take medicine", "دوائی کا وقت")} ${i + 1}`} className={input} />
               <input name={`med_time_${i}`} type="time" defaultValue={med?.time ?? ""} aria-label={`${t("Call time for medicine", "دوائی کی کال کا وقت")} ${i + 1}`} title={t("Call time", "کال کا وقت")} className={`${input} col-span-2 sm:col-span-1`} />
             </div>
           ))}
         </div>
         <label htmlFor="topics" className={`${label} mt-4`}>{t("Things they enjoy talking about (comma separated)", "پسندیدہ موضوعات (کاما لگا کر لکھیں)")}</label>
-        <input id="topics" name="topics" dir="auto" maxLength={400} defaultValue={values.topics.join(", ")} placeholder="pote ki baatein, cricket, purane gaane" className={input} />
+        <input id="topics" name="topics" data-cap="first" autoCapitalize="sentences" dir="auto" maxLength={400} defaultValue={values.topics.join(", ")} placeholder="pote ki baatein, cricket, purane gaane" className={input} />
       </fieldset>
 
       <fieldset className="ui-card p-5">
@@ -202,11 +198,12 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="child_name" className={label}>{t("Your name", "آپ کا نام")}</label>
-            <input id="child_name" name="child_name" dir="auto" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "child_name_ur", savedChild)} />
+            <input id="child_name" name="child_name" data-cap="words" dir="auto" required maxLength={40} defaultValue={values.childName} placeholder={t("e.g. Ali", "مثلاً علی")} className={input} autoCapitalize="words" spellCheck={false} onInput={(e) => keepUrduHonest(e.currentTarget, "child_name_ur", savedChild)} />
           </div>
           <div>
-            <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (filled automatically)", "آپ کا نام اردو میں (خود لکھا جائے گا)")}</label>
-            <input id="child_name_ur" name="child_name_ur" dir="rtl" maxLength={40} defaultValue={values.childNameUr} placeholder="علی" className={`${input} font-urdu`} onInput={(e) => markTyped(e.currentTarget)} />
+            <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (optional)", "آپ کا نام اردو میں (اختیاری)")}</label>
+            <input id="child_name_ur" name="child_name_ur" dir="rtl" lang="ur" maxLength={40} defaultValue={values.childNameUr} placeholder={t("Urdu name", "اردو نام")} className={`${input} font-urdu`} onInput={(e) => markTyped(e.currentTarget)} />
+            <p className={hint}>{t("Type it with an Urdu keyboard, or leave it empty.", "اردو کی بورڈ سے لکھیں، یا خالی چھوڑ دیں۔")}</p>
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="child_phone" className={label}>{t("Your phone (optional)", "آپ کا فون (اختیاری)")}</label>

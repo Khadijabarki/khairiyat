@@ -7,6 +7,7 @@ import { updateName } from "@/app/(auth)/actions";
 import { APP_LANG_COOKIE, type Lang } from "@/lib/i18n";
 import { THEME_KEY } from "@/lib/theme";
 import { useLang } from "../i18n/LangProvider";
+import { capitaliseField } from "@/lib/capitals";
 import SectionHeading from "../ui/SectionHeading";
 
 type Theme = "light" | "dark";
@@ -60,7 +61,7 @@ export default function SettingsForm({ name, canRename }: { name: string; canRen
       {canRename && (
         <section className="ui-card mt-5 p-5">
           <SectionHeading icon="user" title={t("Your Name", "آپ کا نام")} description={t("Shown in the app instead of your email.", "ایپ میں ای میل کی جگہ یہ دکھایا جائے گا۔")} />
-          <input aria-label={t("Your Name", "آپ کا نام")} maxLength={60} autoComplete="name" dir="auto" required value={nextName} onChange={(e) => setNextName(e.target.value)} className="ui-input" />
+          <input aria-label={t("Your Name", "آپ کا نام")} maxLength={60} autoComplete="name" dir="auto" required data-cap="words" autoCapitalize="words" value={nextName} onChange={(e) => { capitaliseField(e); setNextName(e.target.value); }} onBlur={(e) => { capitaliseField(e); setNextName(e.target.value); }} className="ui-input" />
         </section>
       )}
 

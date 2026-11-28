@@ -76,3 +76,23 @@ export function currentSlot(slots: CallSlot[], minutesNow: number, earlyMinutes 
   const latest = [...slots].reverse().find((s) => toMinutes(s.time) <= minutesNow + earlyMinutes);
   return latest && isCallDue(latest.time, minutesNow + earlyMinutes, 180 + earlyMinutes) ? latest : null;
 }
+
+// ---------- Saying the time in Urdu ----------
+// Written out in words so the voice says every number correctly (58 = اٹھاون).
+const URDU_NUMBERS = (
+  "صفر ایک دو تین چار پانچ چھ سات آٹھ نو دس گیارہ بارہ تیرہ چودہ پندرہ سولہ سترہ اٹھارہ انیس بیس " +
+  "اکیس بائیس تئیس چوبیس پچیس چھبیس ستائیس اٹھائیس انتیس تیس " +
+  "اکتیس بتیس تینتیس چونتیس پینتیس چھتیس سینتیس اڑتیس انتالیس چالیس " +
+  "اکتالیس بیالیس تینتالیس چوالیس پینتالیس چھیالیس سینتالیس اڑتالیس انچاس پچاس " +
+  "اکیاون باون ترپن چون پچپن چھپن ستاون اٹھاون انسٹھ"
+).split(" ");
+
+// The time in Pakistan (Islamabad), e.g. "دن کے ایک بج کر اٹھاون منٹ".
+export function urduClock(now = new Date()): string {
+  const { minutesNow } = pakistanToday(now);
+  const hour = Math.floor(minutesNow / 60);
+  const minute = minutesNow % 60;
+  const part = hour >= 4 && hour < 12 ? "صبح" : hour >= 12 && hour < 16 ? "دن" : hour >= 16 && hour < 20 ? "شام" : "رات";
+  const hourWord = URDU_NUMBERS[hour % 12 || 12];
+  return minute === 0 ? `${part} کے ${hourWord} بجے` : `${part} کے ${hourWord} بج کر ${URDU_NUMBERS[minute]} منٹ`;
+}
