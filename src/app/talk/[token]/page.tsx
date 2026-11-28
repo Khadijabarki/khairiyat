@@ -30,20 +30,26 @@ export const instant = false;
 
 // The parent's screen: one big button to start the daily conversation.
 // The link contains a long random token, so only the family who shared it can open it.
-export default function TalkPage({ params }: PageProps<"/talk/[token]">) {
+export default function TalkPage({ params, searchParams }: PageProps<"/talk/[token]">) {
   return (
     <Suspense fallback={<main className="min-h-dvh bg-amber-50" />}>
-      <ParentTalkScreen params={params} />
+      <ParentTalkScreen params={params} searchParams={searchParams} />
     </Suspense>
   );
 }
 
-async function ParentTalkScreen({ params }: { params: PageProps<"/talk/[token]">["params"] }) {
+type ScreenProps = Pick<PageProps<"/talk/[token]">, "params" | "searchParams">;
+
+async function ParentTalkScreen({ params, searchParams }: ScreenProps) {
   const { token } = await params;
   const parent = await getParentByTalkToken(token);
   if (!parent) notFound();
   const lang = readLang((await cookies()).get(TALK_LANG_COOKIE)?.value, "ur");
-  const viewer = await currentUser();
+  // "Back" appears only when the family opened this screen from their dashboard. The shared
+  // link, the QR code, a call and the installed app show just the talk screen, even on a
+  // phone where the family is signed in.
+  const fromDashboard = (await searchParams).from === "family";
+  const viewer = fromDashboard ? await currentUser() : null;
   const backHref = viewer?.id === parent.familyId ? `/family/${parent.id}` : null;
 
   return (

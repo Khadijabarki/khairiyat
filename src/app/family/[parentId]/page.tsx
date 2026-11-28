@@ -106,7 +106,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2 border-t border-stone-200 p-4 sm:px-6">
-          <Link href={`/talk/${parent.talkToken}`} className="ui-btn ui-btn-primary">
+          <Link href={`/talk/${parent.talkToken}?from=family`} className="ui-btn ui-btn-primary">
             <Icon name="screen" className="size-4" />
             {t(`Open ${nickname}'s talk screen`, `${nickname} کی بات والی اسکرین کھولیں`)}
           </Link>
