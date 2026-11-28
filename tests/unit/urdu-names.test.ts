@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { capitalName, isolate, knownUrdu, urduName } from "../../src/lib/urdu-names";
-import { capitalFirst } from "../../src/lib/capitals";
+import { capitalFirst, matchesProfileName } from "../../src/lib/capitals";
 
 describe("urdu names", () => {
   it("writes family words and common names in Urdu", () => {
@@ -39,6 +39,15 @@ describe("urdu names", () => {
     assert.equal(capitalFirst("BP ki goli"), "BP ki goli");
     assert.equal(capitalFirst("دوائی"), "دوائی");
     assert.equal(capitalFirst("2 goliyan"), "2 goliyan");
+  });
+
+  it("requires a member's 'Your name' to be the profile name", () => {
+    assert.equal(matchesProfileName("amna", "Amna"), true);
+    assert.equal(matchesProfileName(" Amna ", "Amna"), true);
+    assert.equal(matchesProfileName("Nimra", "Amna"), false);
+    assert.equal(matchesProfileName("Nimra", ""), true); // an account without a name
+    const long = "Amna ".repeat(12);
+    assert.equal(matchesProfileName(long.slice(0, 40), long), true);
   });
 
   it("isolates a name so it keeps its place in an Urdu sentence", () => {

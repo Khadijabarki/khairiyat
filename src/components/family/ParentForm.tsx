@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useCallback, useState } from "react";
 import type { ParentFormState } from "@/app/family/actions";
 import { useLang } from "../i18n/LangProvider";
-import { capitaliseField } from "@/lib/capitals";
+import { capitaliseField, matchesProfileName } from "@/lib/capitals";
+import { isolate } from "@/lib/urdu-names";
 import { RETRY_MINUTES, RING_MINUTES, SHORT_RING_MINUTES, type RingMinutes } from "@/lib/call-rules";
 import { MAX_RELATION, OTHER_RELATION, RELATIONS, findRelation } from "@/lib/relations";
 
@@ -18,7 +19,7 @@ export type ParentFormValues = {
   childNameUr: string;
   childPhone: string;
   companionGender: "female" | "male";
-  language: "urdu" | "auto" | "punjabi";
+  language: "urdu" | "english" | "auto" | "punjabi";
   checkinTime: string;
   ringMinutes: RingMinutes;
   medicines: { name: string; when: string; time?: string }[];
@@ -54,9 +55,10 @@ type Props = {
   values: ParentFormValues;
   submitLabel: string;
   defaultChildName?: string; // the signed-in person's name, for a new family member
+  profileName?: string; // the account's name: "Your name" must be the same
 };
 
-export default function ParentForm({ action, values: initialValues, submitLabel, defaultChildName = "" }: Props) {
+export default function ParentForm({ action, values: initialValues, submitLabel, defaultChildName = "", profileName = "" }: Props) {
   const [state, formAction, pending] = useActionState(action, {});
   const { lang, t } = useLang();
   const startRelation = state.values?.relation ?? initialValues.relation;
@@ -77,6 +79,14 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
   function markTyped(input: HTMLInputElement) {
     input.dataset.typed = input.value ? "yes" : "";
   }
+  // "Your name" as typed now (null = as shown when the form opened).
+  const [typedChild, setTypedChild] = useState<string | null>(null);
+  // Next.js keeps a page's form alive after you leave it. Reset it then, so opening it
+  // again shows what is saved, not what was typed before.
+  const resetOnLeave = useCallback((form: HTMLFormElement | null) => () => {
+    form?.reset();
+    setTypedChild(null);
+  }, []);
   const savedNickname = { name: initialValues.nickname, urdu: initialValues.nicknameUr };
   const savedChild = { name: initialValues.childName, urdu: initialValues.childNameUr };
 
@@ -95,12 +105,21 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
   const values = state.values ?? { ...initialValues, childName: initialValues.childName || defaultChildName };
   // A new key re-creates the inputs so their default values update after each submit.
   const formKey = JSON.stringify(state.values ?? null);
+  const shownChild = (typedChild ?? values.childName).trim();
+  const differs = Boolean(shownChild) && !matchesProfileName(shownChild, profileName);
+  function fillProfileName(form: HTMLFormElement | null) {
+    if (!form) return;
+    const input = form.elements.namedItem("child_name") as HTMLInputElement;
+    input.value = profileName.slice(0, 40);
+    keepUrduHonest(input, "child_name_ur", savedChild);
+    setTypedChild(profileName.slice(0, 40));
+  }
   const medicineRows = Array.from({ length: Math.max(MEDICINE_ROWS, values.medicines.length) }, (_, i) => values.medicines[i]);
 
   return (
-    <form key={formKey} action={formAction} onInput={capitaliseField} onBlur={capitaliseField} className="space-y-6">
+    <form key={formKey} ref={resetOnLeave} action={formAction} onInput={capitaliseField} onBlur={capitaliseField} className="space-y-6">
       <fieldset className="ui-card p-5">
-        <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Family Member", "آپ کے والدین")}</legend>
+        <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Family Member", "گھر کا فرد")}</legend>
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="name" className={label}>{t("Full name", "پورا نام")}</label>
@@ -170,6 +189,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
             <label htmlFor="language" className={label}>{t("Language", "گفتگو کی زبان")}</label>
             <select id="language" name="language" defaultValue={values.language} className={input}>
               <option value="urdu">{t("Urdu (understands Punjabi too) — recommended", "اردو (پنجابی بھی سمجھتی ہے) — بہتر")}</option>
+              <option value="english">{t("English", "انگریزی")}</option>
               <option value="auto">{t("Reply in the language they speak (Urdu or Punjabi)", "جس زبان میں بولیں اسی میں جواب (اردو یا پنجابی)")}</option>
               <option value="punjabi">{t("Always Punjabi (experimental)", "ہمیشہ پنجابی (آزمائشی)")}</option>
             </select>
@@ -179,7 +199,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
 
       <fieldset className="ui-card p-5">
         <legend className="rounded-full bg-sage-soft px-3 py-0.5 font-display font-semibold text-emerald-900">{t("Medicines", "دوائیاں")}</legend>
-        <p className={hint}>{t("Add a time next to a medicine and Khairiyat also calls then to ask about it (times less than an hour apart become one call). It never suggests new medicines.", "دوائی کے ساتھ وقت لکھیں تو خیریت اس وقت بھی کال کر کے اس کا پوچھے گی (ایک گھنٹے سے کم فرق والے وقت ایک ہی کال بنتے ہیں)۔ نئی دوائی کبھی تجویز نہیں کرتی۔")}</p>
+        <p className={hint}>{t("Add a time next to a medicine and Khairiyat also calls at that time to ask about it. It never suggests new medicines.", "دوائی کے ساتھ وقت لکھیں تو خیریت اس وقت بھی کال کر کے اس کا پوچھے گی۔ نئی دوائی کبھی تجویز نہیں کرتی۔")}</p>
         <div className="mt-3 space-y-2">
           {medicineRows.map((med, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_9rem]">
@@ -198,7 +218,15 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="child_name" className={label}>{t("Your name", "آپ کا نام")}</label>
-            <input id="child_name" name="child_name" data-cap="words" dir="auto" required maxLength={40} defaultValue={values.childName} placeholder={t("e.g. Ali", "مثلاً علی")} className={input} autoCapitalize="words" spellCheck={false} onInput={(e) => keepUrduHonest(e.currentTarget, "child_name_ur", savedChild)} />
+            <input id="child_name" name="child_name" data-cap="words" dir="auto" required maxLength={40} defaultValue={values.childName} placeholder={t("e.g. Ali", "مثلاً علی")} className={input} autoCapitalize="words" spellCheck={false} onInput={(e) => { keepUrduHonest(e.currentTarget, "child_name_ur", savedChild); setTypedChild(e.currentTarget.value); }} />
+            {differs && (
+              <div role="alert" className="mt-2 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm text-stone-800">
+                <p>{t(`Your profile name is ${profileName}, but here it says ${shownChild}. Use the same name, so they know the call is really from you. To change your name, go to Settings.`, `آپ کے پروفائل کا نام ${isolate(profileName)} ہے، مگر یہاں ${isolate(shownChild)} لکھا ہے۔ وہی نام لکھیں تاکہ انہیں پتا ہو کہ کال آپ ہی کی طرف سے ہے۔ نام بدلنے کے لیے ترتیبات میں جائیں۔`)}</p>
+                <button type="button" onClick={(e) => fillProfileName(e.currentTarget.form)} className="mt-2 font-semibold text-emerald-700 underline">
+                  {t(`Use my profile name: ${profileName}`, `پروفائل والا نام لکھیں: ${isolate(profileName)}`)}
+                </button>
+              </div>
+            )}
           </div>
           <div>
             <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (optional)", "آپ کا نام اردو میں (اختیاری)")}</label>
@@ -208,7 +236,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
           <div className="sm:col-span-2">
             <label htmlFor="child_phone" className={label}>{t("Your phone (optional)", "آپ کا فون (اختیاری)")}</label>
             <input id="child_phone" name="child_phone" dir="ltr" type="tel" inputMode="tel" maxLength={30} defaultValue={values.childPhone} placeholder="+92 300 1234567" className={input} />
-            <p className={hint}>{t("Shown as a \"call your son/daughter\" button on their screen in an emergency.", "ایمرجنسی میں ان کی اسکرین پر آپ کو کال کرنے کا بٹن بنے گا۔")}</p>
+            <p className={hint}>{t("In an emergency, their screen shows a button to call you on this number.", "ایمرجنسی میں ان کی اسکرین پر اس نمبر پر آپ کو کال کرنے کا بٹن آئے گا۔")}</p>
           </div>
         </div>
       </fieldset>
@@ -216,7 +244,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
       <label className="flex items-start gap-3 rounded-2xl border border-amber-300 bg-amber-50 p-4 text-sm text-stone-800">
         <input type="checkbox" name="consent" defaultChecked={values.consentGiven} className="mt-1 size-4 accent-emerald-700" />
         <span>
-          {t("My parent knows that Khairiyat is an AI, agrees to talk with it, and agrees that a short summary of each call is shared with the family. (Full conversations are never stored.)", "میرے والدین جانتے ہیں کہ خیریت ایک AI ہے، اس سے بات کرنے پر راضی ہیں، اور اس پر بھی کہ ہر بات کا مختصر خلاصہ گھر والوں کو دیا جائے۔ (پوری گفتگو کبھی محفوظ نہیں ہوتی۔)")}
+          {t("They know that Khairiyat is an AI, agree to talk with it, and agree that a short summary of each call is shared with the family. (Full conversations are never stored.)", "وہ جانتے ہیں کہ خیریت ایک AI ہے، اس سے بات کرنے پر راضی ہیں، اور اس پر بھی کہ ہر بات کا مختصر خلاصہ گھر والوں کو دیا جائے۔ (پوری گفتگو کبھی محفوظ نہیں ہوتی۔)")}
         </span>
       </label>
 

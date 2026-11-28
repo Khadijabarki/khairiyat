@@ -36,7 +36,7 @@ To try the whole flow, create a family account, add a parent, open their QR link
 ## What it does
 
 **For the parent**
-- Real-time **voice conversation in Pakistani Urdu**; understands Punjabi (replies in Urdu by default)
+- Real-time **voice conversation in Pakistani Urdu**; understands Punjabi (replies in Urdu by default); English can be chosen for each family member
 - Speaks like a **daughter or a son**, with the right Urdu grammar for a mother or a father
 - **Remembers previous days** ("Yesterday you mentioned knee pain, how is it today?")
 - Asks about sleep, medicines (at the right time of day), pain, food and mood; never diagnoses or suggests new medicines
@@ -98,7 +98,7 @@ flowchart LR
 
 ## Current limits (prototype)
 
-- Calls ring the **installed web app over the internet**. With the app closed, the phone shows a notification with vibration; it does not ring continuously like a phone call, and some phones or Chrome's spam protection may delay or hide it. Real phone-line calls are not built.
+- Calls ring the **installed web app over the internet**. With the app closed, the phone shows a notification whose sound and vibration repeat every few seconds while the call rings; it is not a full-screen phone call, and some phones (battery savers) or Chrome's spam protection may delay, silence or hide it. Real phone-line calls are not built.
 - Timer accuracy depends on the scheduling service: about a minute with a one-minute timer, longer if only the 5-minute GitHub Actions backup runs.
 - Family alerts are **web notifications** (and appear on the dashboard). No WhatsApp or SMS is sent. They can be delayed or hidden by the phone or browser, and on iPhone web notifications need extra setup that this prototype doesn't provide. The shared demo account never sends them. An optional Telegram message exists in the code (one chat for the whole server, not enabled in the live demo).
 - Gemini's spoken Punjabi sounds unnatural, so replies default to Urdu.
@@ -174,7 +174,7 @@ npm run dev          # http://localhost:3000
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 139 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm test` | 147 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
 | `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 

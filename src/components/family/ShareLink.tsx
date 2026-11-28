@@ -33,7 +33,7 @@ export default async function ShareLink({ parent }: { parent: Parent }) {
           <ol className="list-decimal space-y-1 ps-5">
             <li>{t(`Scan this QR code with ${nickname}'s phone (or send them the link).`, `${nickname} کے فون سے یہ QR کوڈ اسکین کریں (یا لنک بھیج دیں)۔`)}</li>
             <li>{t("Allow the microphone, then add it to the home screen.", "مائیک کی اجازت دیں، پھر ہوم اسکرین پر لگائیں۔")}</li>
-            <li>{t(`That's it: ${nickname} only ever presses one big button.`, `بس: ${nickname} کو صرف ایک بڑا بٹن دبانا ہے۔`)}</li>
+            <li>{t(`That's it: ${nickname} only needs to press one big button.`, `بس: ${nickname} کو صرف ایک بڑا بٹن دبانا ہے۔`)}</li>
           </ol>
           <div className="flex items-center gap-2">
             <code dir="ltr" className="block min-w-0 truncate rounded-lg bg-stone-100 px-2 py-1 text-xs text-stone-700">{link}</code>

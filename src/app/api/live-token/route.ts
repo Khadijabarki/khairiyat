@@ -40,7 +40,7 @@ const RAISE_ALERT: FunctionDeclaration = {
 // The talk screen answers it with Pakistan time taken from this server's clock.
 const CURRENT_TIME: FunctionDeclaration = {
   name: "abhi_ka_waqt",
-  description: "The exact current time in Pakistan (Islamabad), in Urdu. Call it whenever the parent asks what time it is, before answering.",
+  description: "The exact current time in Pakistan (Islamabad), in Urdu and English. Call it whenever the parent asks what time it is, before answering.",
   parametersJsonSchema: { type: "object", properties: {} },
 };
 

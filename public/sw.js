@@ -17,6 +17,33 @@ async function stopRingingScreens(callId) {
   for (const win of windows) win.postMessage({ type: "call-ended", callId });
 }
 
+// ---------- Ringing again and again ----------
+// A web app can't play a ringtone while closed. Instead the ringing notification sounds and
+// vibrates again every few seconds, until it is answered, put off, swiped away or the call ends.
+const RING_EVERY_MS = 4000;
+const MAX_RING_MS = 4.5 * 60 * 1000; // browsers stop a background worker after about 5 minutes
+const quieted = new Set(); // calls that must not sound again
+
+function quiet(callId) {
+  if (callId) quieted.add(callId);
+}
+
+async function keepRinging(callId, until, ringOnce) {
+  const stopAt = Math.min(Number(until) || Infinity, Date.now() + MAX_RING_MS);
+  for (;;) {
+    await new Promise((resolve) => setTimeout(resolve, RING_EVERY_MS));
+    if (quieted.has(callId) || Date.now() >= stopAt) return;
+    // No longer there (opened, swiped away, cleared by the talk screen) or replaced: stop.
+    const showing = await self.registration.getNotifications({ tag: "khairiyat-call" });
+    if (!showing.some((n) => n.data && n.data.ringing && n.data.callId === callId)) return;
+    // While the app is on screen it rings by itself.
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    if (windows.some((w) => w.visibilityState === "visible" && w.url.includes("/talk/"))) continue;
+    if (quieted.has(callId)) return;
+    await ringOnce();
+  }
+}
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -42,6 +69,7 @@ self.addEventListener("push", (event) => {
 
   // Answered or put off on one of the parent's phones: stop ringing here too.
   if (data.type === "ended" && data.url) {
+    quiet(data.callId);
     event.waitUntil(
       (async () => {
         await stopRingingScreens(data.callId);
@@ -63,6 +91,7 @@ self.addEventListener("push", (event) => {
   // A call that ended without an answer: stop any ringing screen and leave a "missed call".
   const missed = data.type === "missed" || (data.type === "call" && data.until && Date.now() >= data.until);
   if (missed && data.url) {
+    quiet(data.callId);
     event.waitUntil(
       (async () => {
         await stopRingingScreens(data.callId);
@@ -89,29 +118,39 @@ self.addEventListener("push", (event) => {
       for (const win of windows) win.postMessage({ type: "incoming-call", callId: data.callId, until: data.until });
 
       // The "ringing": a notification that stays until answered, with a long vibration.
-      await self.registration.showNotification(data.title || "📞 خیریت", {
-        body: data.body || "",
-        icon: "/icons/icon-192.png",
-        badge: "/icons/icon-192.png",
-        tag: "khairiyat-call", // a new call replaces the old notification
-        renotify: true,
-        requireInteraction: true,
-        vibrate: [800, 400, 800, 400, 800, 400, 800, 400, 800],
-        dir: "rtl",
-        lang: "ur",
-        data: { url: data.url, callId: data.callId, until: data.until },
-        actions: [
-          { action: "answer", title: "اٹھائیں" },
-          { action: "later", title: "بعد میں" },
-        ],
-      });
+      const ringOnce = () =>
+        self.registration.showNotification(data.title || "📞 خیریت", {
+          body: data.body || "",
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          tag: "khairiyat-call", // a new call replaces the old notification
+          renotify: true, // sound and vibration every time
+          requireInteraction: true,
+          vibrate: [800, 400, 800, 400, 800],
+          dir: "rtl",
+          lang: "ur",
+          data: { url: data.url, callId: data.callId, until: data.until, ringing: true },
+          actions: [
+            { action: "answer", title: "اٹھائیں" },
+            { action: "later", title: "بعد میں" },
+          ],
+        });
+      quieted.delete(data.callId);
+      await ringOnce();
+      await keepRinging(data.callId, data.until, ringOnce);
     })(),
   );
+});
+
+// Swiped away: that call stays quiet.
+self.addEventListener("notificationclose", (event) => {
+  quiet(event.notification.data && event.notification.data.callId);
 });
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const { url, callId, family, until } = event.notification.data || {};
+  quiet(callId);
   if (!url) return;
 
   // A family alert opens that parent's dashboard.

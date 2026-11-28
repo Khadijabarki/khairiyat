@@ -76,6 +76,17 @@ describe("buildSystemPrompt", () => {
     assert.ok(p.includes("Tum khud kisi ko phone nahi kar sakti"));
   });
 
+  it("locks the AI to the chosen language", () => {
+    const urdu = buildSystemPrompt(parent(), []);
+    assert.ok(urdu.startsWith("ZABAAN PAKKI HAI"));
+    assert.ok(urdu.includes("sirf Urdu mein bolo"));
+    assert.ok(urdu.includes("Spanish, Hindi, Arabic"));
+    const english = buildSystemPrompt(parent({ language: "english" }), []);
+    assert.ok(english.includes("sirf English mein bolo"));
+    assert.ok(english.includes("jawab English mein do"));
+    assert.ok(!english.includes("HAMESHA saaf, ghar wali Pakistani Urdu"));
+  });
+
   it("tells the AI the current Pakistan time", () => {
     const p = buildSystemPrompt(parent(), [], new Date("2026-11-28T08:58:00Z")); // 13:58 in Pakistan
     assert.ok(p.includes("Abhi Pakistan mein asal waqt hai"));

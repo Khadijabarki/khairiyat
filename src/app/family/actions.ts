@@ -27,7 +27,7 @@ import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
 import { MAX_RELATION, OTHER_RELATION, findRelation } from "@/lib/relations";
 import { capitalName } from "@/lib/urdu-names";
-import { capitalFirst } from "@/lib/capitals";
+import { capitalFirst, matchesProfileName } from "@/lib/capitals";
 
 // On an error, the typed-in values are sent back so the form can show them again
 // (React clears a form after it is submitted).
@@ -43,6 +43,11 @@ function newTalkToken(): string {
 
 function text(form: FormData, key: string, max: number): string {
   return String(form.get(key) ?? "").trim().slice(0, max);
+}
+
+const LANGUAGES = ["urdu", "english", "auto", "punjabi"] as const;
+function languageFrom(form: FormData): (typeof LANGUAGES)[number] {
+  return LANGUAGES.find((x) => x === form.get("language")) ?? "urdu";
 }
 
 // The chosen relationship, or the family's own words when they picked "Other".
@@ -77,9 +82,17 @@ async function saveRow<R extends { error: SaveError }>(
 }
 
 const saveProblem = (error: SaveError) =>
-  missingColumn(error, "ring_minutes")
+  error?.code === "23514" && error.message?.includes("parents_language_check")
+    ? "English can't be saved yet. Run supabase/schema.sql in Supabase first, or choose Urdu."
+    : missingColumn(error, "ring_minutes")
     ? "The 2-minute choice can't be saved yet. Run supabase/schema.sql in Supabase first, or choose 5 minutes."
     : "Could not save. Please try again.";
+
+// Only for real accounts: the shared demo keeps its made-up names.
+function wrongOwnName(row: Record<string, unknown>, user: { email: string; name: string }): boolean {
+  return user.email !== demoEmail() && !matchesProfileName(String(row.child_name), user.name);
+}
+const OWN_NAME_ERROR = '"Your name" must be the same as your profile name. Use the button under it, or change your name in Settings.';
 
 // What the family typed, for showing the form again after an error.
 function echoValues(form: FormData): ParentFormValues {
@@ -100,7 +113,7 @@ function echoValues(form: FormData): ParentFormValues {
     childNameUr: text(form, "child_name_ur", 40),
     childPhone: text(form, "child_phone", 30),
     companionGender: form.get("companion_gender") === "male" ? "male" : "female",
-    language: (["urdu", "auto", "punjabi"].includes(String(form.get("language"))) ? form.get("language") : "urdu") as ParentFormValues["language"],
+    language: languageFrom(form),
     checkinTime: text(form, "checkin_time", 5) || "10:00",
     ringMinutes: ringMinutesFrom(form.get("ring_minutes")),
     medicines,
@@ -114,13 +127,12 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
   const name = capitalName(text(form, "name", 80));
   const nickname = capitalName(text(form, "nickname", 40));
   const childName = capitalName(text(form, "child_name", 40));
-  if (!name || !nickname || !childName) return { error: "Please fill in the parent's name, what you call them, and your name." };
+  if (!name || !nickname || !childName) return { error: "Please fill in their name, what you call them, and your name." };
   const relation = relationFrom(form);
 
   const gender = form.get("gender") === "male" ? "male" : "female";
   const companionGender = form.get("companion_gender") === "male" ? "male" : "female";
-  const languageValue = String(form.get("language") ?? "urdu");
-  const language = ["urdu", "auto", "punjabi"].includes(languageValue) ? languageValue : "urdu";
+  const language = languageFrom(form);
 
   const checkinTime = text(form, "checkin_time", 5);
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(checkinTime)) return { error: "Please choose a daily call time." };
@@ -144,7 +156,7 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
     .slice(0, MAX_TOPICS);
 
   if (form.get("consent") !== "on") {
-    return { error: "Please confirm that your parent agrees to talk with Khairiyat (an AI)." };
+    return { error: "Please confirm that they agree to talk with Khairiyat (an AI)." };
   }
 
   return {
@@ -172,13 +184,14 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
   const user = await requireUser();
   const parsed = parseParentForm(form);
   if ("error" in parsed) return { error: await say(parsed.error), values: echoValues(form) };
+  if (wrongOwnName(parsed.row, user)) return { error: await say(OWN_NAME_ERROR), values: echoValues(form) };
 
   const supabase = db();
   if (!supabase) return { error: await say("The database is not available.") };
 
   // A simple limit so one account can't fill the database.
   const { count } = await supabase.from("parents").select("id", { count: "exact", head: true }).eq("family_id", user.id);
-  if ((count ?? 0) >= 10) return { error: await say("A family can add up to 10 parents."), values: echoValues(form) };
+  if ((count ?? 0) >= 10) return { error: await say("A family can add up to 10 members."), values: echoValues(form) };
 
   const insert = (row: Record<string, unknown>) =>
     supabase.from("parents").insert({ ...row, family_id: user.id, talk_token: newTalkToken() }).select("id").single();
@@ -188,7 +201,7 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
     console.error("createParent: database error", error?.code ?? "");
     return { error: await say(saveProblem(error)), values: echoValues(form) };
   }
-  revalidatePath("/family");
+  revalidatePath("/family", "layout");
   redirect(`/family/${data.id}?added=1`);
 }
 
@@ -196,10 +209,11 @@ export async function updateParent(parentId: string, _prev: ParentFormState, for
   const user = await requireUser();
   const parent = await getFamilyParent(user.id, parentId); // ownership check
   if (!parent) return { error: await say("Not found.") };
-  if (parent.isDemo) return { error: await say("The demo parents can't be changed. Create your own account to add your parents.") };
+  if (parent.isDemo) return { error: await say("The demo profiles can't be changed. Create your own account to add your family.") };
 
   const parsed = parseParentForm(form);
   if ("error" in parsed) return { error: await say(parsed.error), values: echoValues(form) };
+  if (wrongOwnName(parsed.row, user)) return { error: await say(OWN_NAME_ERROR), values: echoValues(form) };
 
   const supabase = db();
   const update = (row: Record<string, unknown>) => supabase!.from("parents").update(row).eq("id", parent.id).eq("family_id", user.id);
@@ -209,7 +223,7 @@ export async function updateParent(parentId: string, _prev: ParentFormState, for
     console.error("updateParent: database error", error.code);
     return { error: await say(saveProblem(error)), values: echoValues(form) };
   }
-  revalidatePath(`/family/${parent.id}`);
+  revalidatePath("/family", "layout"); // every family page, including this form
   redirect(`/family/${parent.id}`);
 }
 

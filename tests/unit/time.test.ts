@@ -1,7 +1,7 @@
 // Daily call schedule in Pakistan time.
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { callSlots, callTimeIso, currentSlot, dueSlot, isCallDue, pakistanToday, toMinutes, urduClock } from "../../src/lib/time";
+import { callSlots, callTimeIso, currentSlot, dueSlot, isCallDue, pakistanToday, toMinutes, urduClock, englishClock } from "../../src/lib/time";
 import { readMedicines } from "../../src/lib/medicines";
 
 describe("pakistanToday", () => {
@@ -59,19 +59,19 @@ describe("callSlots", () => {
     assert.deepEqual(callSlots("10:00", meds).map((s) => s.time), ["08:30", "10:00", "14:00", "22:00"]);
   });
 
-  it("makes one call out of times less than an hour apart", () => {
-    const slots = callSlots("09:00", meds);
-    assert.deepEqual(slots[0], { time: "08:30", daily: true, medicines: ["BP"] });
-    assert.equal(slots.length, 3);
-    assert.equal(callSlots("09:30", meds).length, 4);
+  it("rings every set time, even close together; only identical times are one call", () => {
+    assert.deepEqual(callSlots("08:30", meds)[0], { time: "08:30", daily: true, medicines: ["BP"] });
+    assert.equal(callSlots("08:30", meds).length, 3);
+    assert.deepEqual(callSlots("08:33", meds).map((s) => s.time), ["08:30", "08:33", "14:00", "22:00"]);
   });
 
-  it("rings for the latest time that has passed, for up to 3 hours", () => {
+  it("rings for the latest time that has passed, for up to 15 minutes", () => {
     const slots = callSlots("10:00", meds);
     assert.equal(dueSlot(slots, toMinutes("08:29")), null);
     assert.equal(dueSlot(slots, toMinutes("08:30"))?.time, "08:30");
     assert.equal(dueSlot(slots, toMinutes("14:05"))?.time, "14:00");
-    assert.equal(dueSlot(slots, toMinutes("17:30")), null);
+    assert.equal(dueSlot(slots, toMinutes("14:15"))?.time, "14:00");
+    assert.equal(dueSlot(slots, toMinutes("14:16")), null);
   });
 
   it("knows which call a slightly early conversation belongs to", () => {
@@ -88,6 +88,12 @@ describe("readMedicines", () => {
       { name: "B", when: "raat" },
     ]);
     assert.deepEqual(readMedicines("junk"), []);
+  });
+});
+
+describe("englishClock", () => {
+  it("says Pakistan time", () => {
+    assert.equal(englishClock(new Date("2026-11-28T08:58:00Z")), "1:58 PM");
   });
 });
 

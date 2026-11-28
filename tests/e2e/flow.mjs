@@ -214,7 +214,7 @@ try {
   ok("'Open the demo' opens the demo family", (await url()) === "/family" && (await text()).includes("Zubaida Begum"));
   ok("the shared demo never sends alerts to anyone", (await text()).includes("Alerts are switched off in the shared demo"));
   await go("/family/ammi/edit");
-  ok("demo parents show the read-only note", (await text()).includes("demo parent"));
+  ok("demo parents show the read-only note", (await text()).includes("demo profile"));
   await fill("#nickname", "Hacked");
   await submit();
   ok("demo parents can't be changed", (await text()).includes("can't be changed"));

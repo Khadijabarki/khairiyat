@@ -6,6 +6,9 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { authClient, currentUser, demoEmail } from "@/lib/auth";
 import { removeFamilyDevices } from "@/lib/family-devices";
+import { matchesProfileName } from "@/lib/capitals";
+import { db } from "@/lib/db";
+import { capitalName, knownUrdu } from "@/lib/urdu-names";
 import { FAMILY_DEVICE_COOKIE } from "@/lib/session-cookie";
 import { ipFromHeaders, rateLimit } from "@/lib/security";
 import { say } from "@/lib/server-messages";
@@ -70,6 +73,23 @@ export async function openDemo(): Promise<AuthState> {
   redirect("/family");
 }
 
+// A new profile name also becomes "Your name" for every family member, so their screens
+// never show the old one. The Urdu saved for the old name is replaced.
+async function renameOnTalkScreens(familyId: string, name: string): Promise<void> {
+  const supabase = db();
+  if (!supabase) return;
+  const { data } = await supabase.from("parents").select("id, child_name").eq("family_id", familyId);
+  for (const row of data ?? []) {
+    if (matchesProfileName(String(row.child_name), name)) continue;
+    const { error } = await supabase
+      .from("parents")
+      .update({ child_name: name, child_name_ur: knownUrdu(name) ?? "" })
+      .eq("id", row.id)
+      .eq("family_id", familyId);
+    if (error) console.error("renameOnTalkScreens: database error", error.code);
+  }
+}
+
 // The name shown in the app instead of the email address.
 export async function updateName(_prev: AuthState, form: FormData): Promise<AuthState> {
   const user = await currentUser();
@@ -82,6 +102,7 @@ export async function updateName(_prev: AuthState, form: FormData): Promise<Auth
   const supabase = await authClient();
   const { error } = await supabase.auth.updateUser({ data: { full_name: fullName } });
   if (error) return { error: await say("Could not save. Please try again.") };
+  await renameOnTalkScreens(user.id, capitalName(fullName).slice(0, 40));
   revalidatePath("/family", "layout");
   return { info: await say("Your name is saved.") };
 }

@@ -93,7 +93,7 @@ async function DoctorReport({ params, searchParams }: ReportProps) {
       </header>
 
       <p className="mt-3 rounded-xl border border-stone-300 bg-white p-3 text-sm text-stone-700">
-        {t("These notes come from short conversations with an AI companion. They are self-reported, summarised and scored by AI, and may be incomplete or wrong. This is not a medical record or a diagnosis.", "یہ نوٹس AI ساتھی سے مختصر باتوں سے بنے ہیں۔ یہ والدین کے اپنے بیان ہیں، AI نے خلاصہ اور اسکور بنائے ہیں، اور یہ ادھورے یا غلط ہو سکتے ہیں۔ یہ طبی ریکارڈ یا تشخیص نہیں۔")}
+        {t("These notes come from short conversations with an AI companion. They are self-reported, summarised and scored by AI, and may be incomplete or wrong. This is not a medical record or a diagnosis.", "یہ نوٹس AI ساتھی سے مختصر باتوں سے بنے ہیں۔ یہ ان کے اپنے بیان ہیں، AI نے خلاصہ اور اسکور بنائے ہیں، اور یہ ادھورے یا غلط ہو سکتے ہیں۔ یہ طبی ریکارڈ یا تشخیص نہیں۔")}
       </p>
 
       {!ok ? (

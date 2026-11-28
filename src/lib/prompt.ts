@@ -38,6 +38,8 @@ function languageRule(parent: Parent): string {
     "Sirf Pakistani Punjabi bolo (Lahore/Faisalabad wala lehja: 'tusi kiwen o?', 'ki haal ae?', 'dawai le layi?'). " +
     "Indian Punjabi ke lafz aur lehja bilkul nahi.";
   switch (parent.language) {
+    case "english":
+      return `- Hamesha saaf, aasaan English mein jawab do. ${n} Urdu ya Punjabi bolein to samajh lo, lekin jawab English mein do.`;
     case "punjabi":
       return `- Hamesha Punjabi mein baat karo, Urdu mat milao. ${punjabiStyle}`;
     case "auto":
@@ -48,6 +50,23 @@ function languageRule(parent: Parent): string {
         `lekin tum HAMESHA saaf, ghar wali Pakistani Urdu mein jawab do. Punjabi mein jawab mat do.`
       );
   }
+}
+
+// The first thing the AI reads: which language it may speak. (Left to itself, the voice model
+// can answer noise or a misheard word in some other language.)
+function languageLock(parent: Parent): string {
+  const n = parent.nickname;
+  const allowed = { urdu: "Urdu", english: "English", auto: "Urdu ya Punjabi", punjabi: "Punjabi" }[parent.language];
+  return [
+    "ZABAAN PAKKI HAI (sab se pehla usool)",
+    `- ${n} se sirf ${allowed} mein bolo. Salam aur har jawab isi zaban mein.`,
+    `- Sirf tab zaban badlo jab ${n} saaf lafzon mein kahein: English mein bolo, ya Urdu mein bolo.`,
+    "- Spanish, Hindi, Arabic ya kisi bhi aur zaban mein KABHI jawab mat do, chahe aisa lage ke kisi aur zaban mein kuch kaha gaya.",
+    "- Awaz saaf na ho, shor ho, ya baat samajh na aaye to andaza mat lagao aur naya mauzu mat banao: apni zaban mein pyar se dobara kehne ko kaho.",
+    ...(parent.language === "english"
+      ? ["- Neeche ki hidayat aur Urdu misalein sirf tumhare samajhne ke liye hain. Un ka matlab English mein kaho."]
+      : []),
+  ].join("\n");
 }
 
 // Builds the instructions that tell Gemini how to talk to the parent.
@@ -110,9 +129,12 @@ export function buildSystemPrompt(parent: Parent, recent: PastCheckin[], time = 
   });
 
   return `
+${languageLock(parent)}
+
 WAQT
 Abhi Pakistan mein asal waqt hai: ${now}. Urdu mein: ${urduClock(time)}. Yahi sahi (Islamabad ka) waqt hai.
 - ${n} waqt poochein to PEHLE "abhi_ka_waqt" tool call karo, phir jo Urdu waqt mile wohi lafz ba lafz bolo, jaise "ابھی دن کے ایک بج کر اٹھاون منٹ ہوئے ہیں". Andaze se ya koi aur waqt KABHI mat batao.
+- Agar baat English mein ho rahi ho to tool wala "english" waqt English mein bolo.
 - Waqt har lamha badalta hai: HAR dafa poochne par (dobara bhi, thori der baad bhi) naya tool call karo. Pehle bataya hua waqt kabhi mat dohrao.
 - Waqt ke hisaab se baat karo (subah, dopahar, shaam ya raat), aur usi waqt wali dawai ka poocho.
 - Agar ${n} waqt ya din ghalat bataayein (jaise dopahar ko kahein "raat ho gayi"), to unki baat mat maano. Pyar se upar diya gaya sahi waqt batao, jaise: "Nahi ${n}, abhi to [sahi waqt] hai." Ghalat waqt par dawai lena nuqsan de sakta hai.

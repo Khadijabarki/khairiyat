@@ -60,7 +60,7 @@ export default function SettingsForm({ name, canRename }: { name: string; canRen
     <form onSubmit={save} onChange={() => setMessage(null)}>
       {canRename && (
         <section className="ui-card mt-5 p-5">
-          <SectionHeading icon="user" title={t("Your Name", "آپ کا نام")} description={t("Shown in the app instead of your email.", "ایپ میں ای میل کی جگہ یہ دکھایا جائے گا۔")} />
+          <SectionHeading icon="user" title={t("Your Name", "آپ کا نام")} description={t("Shown in the app, and on your family members' talk screens.", "ایپ میں، اور آپ کے گھر والوں کی بات والی اسکرین پر یہی نام دکھایا جائے گا۔")} />
           <input aria-label={t("Your Name", "آپ کا نام")} maxLength={60} autoComplete="name" dir="auto" required data-cap="words" autoCapitalize="words" value={nextName} onChange={(e) => { capitaliseField(e); setNextName(e.target.value); }} onBlur={(e) => { capitaliseField(e); setNextName(e.target.value); }} className="ui-input" />
         </section>
       )}

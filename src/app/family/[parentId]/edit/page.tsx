@@ -45,7 +45,7 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
       <h1 className="mt-1 text-3xl font-semibold text-stone-900">{t(`Edit ${nickname}`, `${nickname} کی معلومات بدلیں`)}</h1>
       {parent.isDemo && (
         <p className="mt-3 rounded-xl bg-amber-100 p-3 text-sm text-amber-900">
-          {t("This is a demo parent, so changes can't be saved. Create your own account to add your parents.", "یہ ڈیمو والدین ہیں، تبدیلی محفوظ نہیں ہوگی۔ اپنے والدین کے لیے اپنا اکاؤنٹ بنائیں۔")}
+          {t("This is a demo profile, so changes can't be saved. Create your own account to add your family.", "یہ ڈیمو پروفائل ہے، تبدیلی محفوظ نہیں ہوگی۔ اپنے گھر والوں کے لیے اپنا اکاؤنٹ بنائیں۔")}
         </p>
       )}
       <section className="ui-card mt-6 flex flex-wrap items-center gap-5 p-5">
@@ -65,6 +65,9 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
       </section>
       <div className="mt-6">
         <ParentForm
+          // Saved changes make a new form, so it never shows the old values.
+          key={JSON.stringify(parent)}
+          profileName={parent.isDemo ? "" : user.name}
           action={updateParent.bind(null, parent.id)}
           values={{ ...parent, companionGender: parent.companion.gender }}
           submitLabel={t("Save changes", "تبدیلی محفوظ کریں")}
@@ -89,8 +92,8 @@ async function EditForm({ params }: { params: PageProps<"/family/[parentId]/edit
       <SidePanel
         title={t(`Caring for ${nickname}`, `${nickname} کا خیال`)}
         points={[
-          t("A photo makes the profile easy to recognise.", "تصویر سے پروفائل آسانی سے پہچانی جاتی ہے۔"),
-          t("Add a time to a medicine to get a call then.", "دوائی کا وقت لکھیں تو اس وقت کال آئے گی۔"),
+          t("Add a photo to find this profile at a glance.", "تصویر لگائیں تو یہ پروفائل ایک نظر میں مل جائے گی۔"),
+          t("Set a time for a medicine, and Khairiyat will call then to ask about it.", "دوائی کا وقت لکھیں تو خیریت اس وقت کال کر کے اس کا پوچھے گی۔"),
         ]}
       />
     </div>

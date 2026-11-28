@@ -16,7 +16,7 @@ create table if not exists public.parents (
   nickname         text not null check (char_length(nickname) between 1 and 40), -- e.g. Ammi
   nickname_ur      text not null default '' check (char_length(nickname_ur) <= 40),
   gender           text not null check (gender in ('female', 'male')),
-  language         text not null default 'urdu' check (language in ('urdu', 'auto', 'punjabi')),
+  language         text not null default 'urdu' check (language in ('urdu', 'english', 'auto', 'punjabi')),
   child_name       text not null check (char_length(child_name) between 1 and 40),
   child_name_ur    text not null default '' check (char_length(child_name_ur) <= 40),
   child_phone      text not null default '' check (child_phone = '' or child_phone ~ '^\+?[0-9]{7,15}$'),
@@ -33,6 +33,10 @@ create index if not exists parents_family on public.parents (family_id);
 
 -- How the family member is related (e.g. mother, phuppo, or the family's own words).
 alter table public.parents add column if not exists relation text not null default '' check (char_length(relation) <= 30);
+
+-- English was added to the languages Khairiyat can speak.
+alter table public.parents drop constraint if exists parents_language_check;
+alter table public.parents add constraint parents_language_check check (language in ('urdu', 'english', 'auto', 'punjabi'));
 
 -- How long a call rings on this person's phone, in minutes.
 alter table public.parents add column if not exists ring_minutes smallint not null default 5 check (ring_minutes in (2, 5));

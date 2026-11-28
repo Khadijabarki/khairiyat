@@ -19,8 +19,8 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       <h1 className="text-2xl font-semibold text-stone-900">{isSignUp ? t("Create a Family Account", "فیملی اکاؤنٹ بنائیں") : t("Family Sign In", "فیملی سائن اِن")}</h1>
       <p className="mt-1 text-sm text-stone-600">
         {isSignUp
-          ? t("For the son or daughter who wants daily updates about their parent.", "اس بیٹے یا بیٹی کے لیے جو روز والدین کی خبر چاہتے ہیں۔")
-          : t("See how your parent is doing, and manage their daily Khairiyat calls.", "والدین کا حال دیکھیں اور ان کی روز کی خیریت کال سنبھالیں۔")}
+          ? t("For anyone who wants daily updates about a loved one.", "ہر اس شخص کے لیے جو روز اپنوں کی خبر چاہتا ہے۔")
+          : t("See how your family is doing, and manage their daily Khairiyat calls.", "گھر والوں کا حال دیکھیں اور ان کی روز کی خیریت کال سنبھالیں۔")}
       </p>
 
       {isSignUp && (

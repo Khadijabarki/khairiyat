@@ -7,6 +7,13 @@ import { capitalName } from "./urdu-names";
 export const capitalFirst = (text: string) =>
   text.replace(/^(\s*)([a-z])/, (_match, space: string, letter: string) => space + letter.toUpperCase());
 
+// A family member's "Your name" must be the account's own name, so a call can't arrive under
+// a different one. (Capital letters don't matter. An account without a name has no rule.)
+export function matchesProfileName(childName: string, profileName: string): boolean {
+  const profile = profileName.slice(0, 40).trim().toLowerCase(); // the field holds 40 letters
+  return !profile || childName.trim().toLowerCase() === profile;
+}
+
 // For a form's (or field's) onInput and onBlur.
 export function capitaliseField(event: { target: EventTarget; nativeEvent: Event }): void {
   const box = event.target as HTMLInputElement;

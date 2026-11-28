@@ -73,8 +73,8 @@ async function Settings() {
       <SidePanel
         title={t("Your Space", "آپ کی جگہ")}
         points={[
-          t("Choose the name, language and appearance you like.", "اپنا نام، زبان اور رنگ روپ چنیں۔"),
-          t("Turn on alerts to hear about your family at once.", "گھر والوں کی خبر فوراً پانے کے لیے الرٹ آن کریں۔"),
+          t("Set your name, language and appearance.", "اپنا نام، زبان اور رنگ روپ چنیں۔"),
+          t("Turn on alerts to hear about your family right away.", "گھر والوں کی خبر فوراً پانے کے لیے الرٹ آن کریں۔"),
         ]}
       />
     </div>

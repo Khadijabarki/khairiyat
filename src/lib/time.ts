@@ -31,9 +31,11 @@ export function isCallDue(checkinTime: string, minutesNow: number, windowMinutes
 
 // ---------- Call times: the daily check-in plus each medicine's time ----------
 
-// Times closer together than this are one call, so the parent isn't rung again and again
-// (it also leaves room for the retry and the "no answer" alert before the next call).
-export const MERGE_MINUTES = 60;
+// Every time the family sets gets its own call; only identical times are one call.
+export const MERGE_MINUTES = 1;
+// A set time still rings this late (the scheduler was down, or another call was going on),
+// but not hours afterwards.
+export const LATE_MINUTES = 15;
 
 export type CallSlot = {
   time: string; // "HH:MM" in Pakistan time
@@ -68,13 +70,18 @@ export function callSlots(checkinTime: string, medicines: { name: string; time?:
 // The call that should ring now: the latest call time that has passed, if it is still due.
 export function dueSlot(slots: CallSlot[], minutesNow: number): CallSlot | null {
   const latest = [...slots].reverse().find((s) => toMinutes(s.time) <= minutesNow);
-  return latest && isCallDue(latest.time, minutesNow) ? latest : null;
+  return latest && isCallDue(latest.time, minutesNow, LATE_MINUTES) ? latest : null;
 }
 
 // The call time a conversation happening now belongs to (it may start a little early).
 export function currentSlot(slots: CallSlot[], minutesNow: number, earlyMinutes = 30): CallSlot | null {
   const latest = [...slots].reverse().find((s) => toMinutes(s.time) <= minutesNow + earlyMinutes);
   return latest && isCallDue(latest.time, minutesNow + earlyMinutes, 180 + earlyMinutes) ? latest : null;
+}
+
+// The same moment for an English conversation, e.g. "1:58 PM".
+export function englishClock(now = new Date()): string {
+  return now.toLocaleTimeString("en-US", { timeZone: "Asia/Karachi", hour: "numeric", minute: "2-digit" });
 }
 
 // ---------- Saying the time in Urdu ----------

@@ -15,7 +15,7 @@ export type Gender = "female" | "male";
 // Which language Khairiyat speaks:
 // "urdu" = understands Punjabi but always replies in Urdu (recommended; the model's spoken
 // Punjabi currently sounds Indian), "auto" = replies in the parent's language, "punjabi" = always Punjabi.
-export type Language = "urdu" | "auto" | "punjabi";
+export type Language = "urdu" | "english" | "auto" | "punjabi";
 
 export type { Medicine };
 
@@ -89,7 +89,7 @@ function toParent(row: ParentRow): Parent {
     childName: capitalName(row.child_name),
     childNameUr: urduName(row.child_name_ur, row.child_name),
     childPhone: row.child_phone,
-    language: row.language === "auto" || row.language === "punjabi" ? row.language : "urdu",
+    language: row.language === "english" || row.language === "auto" || row.language === "punjabi" ? row.language : "urdu",
     medicines,
     topics: row.topics ?? [],
     companion: { gender: companionGender, voice: VOICES[companionGender] },

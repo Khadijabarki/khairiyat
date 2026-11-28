@@ -16,7 +16,7 @@ import LanguageSwitch from "./i18n/LanguageSwitch";
 import { useLang } from "./i18n/LangProvider";
 import { TALK_LANG_COOKIE } from "@/lib/i18n";
 import { MAX_TALK_MINUTES, RING_MINUTES } from "@/lib/call-rules";
-import { urduClock } from "@/lib/time";
+import { englishClock, urduClock } from "@/lib/time";
 import { TIPS_EN } from "@/lib/safety-tips-en";
 import IncomingCall from "./talk/IncomingCall";
 import ParentMessage from "./talk/ParentMessage";
@@ -157,7 +157,8 @@ export default function TalkScreen(props: Props) {
     const responses = calls.map((call) => {
       // Asked the time: answer with Pakistan time by the server's clock.
       if (call.name === "abhi_ka_waqt") {
-        return { id: call.id, name: call.name, response: { waqt: urduClock(new Date(Date.now() + clockOffsetRef.current)) } };
+        const now = new Date(Date.now() + clockOffsetRef.current);
+        return { id: call.id, name: call.name, response: { waqt: urduClock(now), english: englishClock(now) } };
       }
       const args = (call.args ?? {}) as { category?: string; reason?: string };
       const rule = call.name === "raise_alert" ? getRule(String(args.category)) : undefined;

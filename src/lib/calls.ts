@@ -34,7 +34,6 @@ import { callSlots, callTimeIso, dueSlot, pakistanToday } from "./time";
 import { isolate } from "./urdu-names";
 
 const MAX_DEVICES_PER_PARENT = 5;
-const TALKED_BEFORE_MINUTES = 30; // a conversation this close before a medicine time covers it
 
 export type CallKind = "scheduled" | "manual" | "retry";
 export type CallStatus = "ringing" | "answered" | "declined" | "missed" | "failed";
@@ -293,26 +292,24 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
     const slot = dueSlot(slots, minutesNow);
     if (!slot) continue;
 
-    // Once for each call time: only calls made since that time count, so a family that
-    // moves a time to later in the day still gets that call.
-    // No call if the parent already talked: for the plain daily check-in any conversation
-    // today counts; a medicine call only skips a conversation from shortly before.
-    const slotIso = callTimeIso(startIso, slot.time);
-    const talkedSince = slot.medicines.length
-      ? new Date(Date.parse(slotIso) - TALKED_BEFORE_MINUTES * 60 * 1000).toISOString()
-      : startIso;
-    const [{ count: callsSince }, { count: checkins }] = await Promise.all([
-      supabase.from("calls").select("id", { count: "exact", head: true }).eq("parent_id", row.id).in("kind", ["scheduled", "retry"]).gte("created_at", slotIso),
-      supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", row.id).eq("is_sample", false).gte("created_at", talkedSince),
-    ]);
-    if (callsSince || checkins) continue;
+    // Every set time rings, once: only a set-time call made since that time counts (not a
+    // second try of an earlier call, and not an earlier conversation).
+    const { count: made } = await supabase
+      .from("calls")
+      .select("id", { count: "exact", head: true })
+      .eq("parent_id", row.id)
+      .eq("kind", "scheduled")
+      .gte("created_at", callTimeIso(startIso, slot.time));
+    if (made) continue;
     if ((await deviceCount(row.id)) === 0) continue; // no phone set up yet
 
     const parent = await getParentById(row.id);
-    if (parent) {
-      await ringParent(parent, "scheduled");
-      report.dueCalls++;
-    }
+    if (!parent) continue;
+    // Never on top of a call that is ringing or being talked on: it rings right after.
+    const live = await currentLiveCall(parent);
+    if (live.state === "ringing" || live.state === "talking") continue;
+    await ringParent(parent, "scheduled");
+    report.dueCalls++;
   }
   return report;
 }
