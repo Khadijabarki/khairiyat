@@ -1,5 +1,6 @@
 // The parent answered a call, or pressed "Later".
-import { respondToCall } from "@/lib/calls";
+import { after } from "next/server";
+import { endCallEverywhere, respondToCall } from "@/lib/calls";
 import { getParentByTalkToken } from "@/lib/data";
 import { clientIp, isSameOrigin, isValidTalkToken, jsonError, rateLimit, readJson } from "@/lib/security";
 
@@ -18,6 +19,10 @@ export async function POST(request: Request) {
   if (!parent) return jsonError("Not found", 404);
 
   // Only updates a call that belongs to this parent and is still open.
-  const updated = await respondToCall(parent, body.callId, body.action);
+  const callId: string = body.callId;
+  const action: "answer" | "decline" = body.action === "answer" ? "answer" : "decline";
+  const updated = await respondToCall(parent, callId, action);
+  // Stop the ringing elsewhere, after replying so the parent isn't kept waiting.
+  if (updated) after(() => endCallEverywhere(parent, callId, action));
   return Response.json({ ok: updated }, { headers: { "Cache-Control": "no-store" } });
 }

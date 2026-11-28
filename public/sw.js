@@ -11,6 +11,12 @@ function talkTokenFrom(url) {
   return match ? match[1] : "";
 }
 
+// Tells every open Khairiyat window on this device to stop ringing for this call.
+async function stopRingingScreens(callId) {
+  const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+  for (const win of windows) win.postMessage({ type: "call-ended", callId });
+}
+
 self.addEventListener("push", (event) => {
   let data = {};
   try {
@@ -34,13 +40,32 @@ self.addEventListener("push", (event) => {
     return;
   }
 
+  // Answered or put off on one of the parent's phones: stop ringing here too.
+  if (data.type === "ended" && data.url) {
+    event.waitUntil(
+      (async () => {
+        await stopRingingScreens(data.callId);
+        // Same tag: this quietly takes the place of the ringing notification.
+        await self.registration.showNotification(data.title || "خیریت", {
+          icon: "/icons/icon-192.png",
+          badge: "/icons/icon-192.png",
+          tag: "khairiyat-call",
+          silent: true,
+          dir: "rtl",
+          lang: "ur",
+          data: { url: data.url },
+        });
+      })(),
+    );
+    return;
+  }
+
   // A call that ended without an answer: stop any ringing screen and leave a "missed call".
   const missed = data.type === "missed" || (data.type === "call" && data.until && Date.now() >= data.until);
   if (missed && data.url) {
     event.waitUntil(
       (async () => {
-        const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
-        for (const win of windows) win.postMessage({ type: "call-ended", callId: data.callId });
+        await stopRingingScreens(data.callId);
         await self.registration.showNotification(data.type === "missed" ? data.title : "📵 خیریت کی مس کال", {
           body: data.type === "missed" ? data.body : "بات کرنے کے لیے دبائیں۔",
           icon: "/icons/icon-192.png",
@@ -106,11 +131,14 @@ self.addEventListener("notificationclick", (event) => {
   // "Later": tell the server, so Khairiyat calls again a bit later.
   if (event.action === "later") {
     event.waitUntil(
-      fetch("/api/call/respond", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ talkToken: talkTokenFrom(url), callId, action: "decline" }),
-      }).catch(() => {}),
+      Promise.all([
+        stopRingingScreens(callId), // an open talk screen must stop at once
+        fetch("/api/call/respond", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ talkToken: talkTokenFrom(url), callId, action: "decline" }),
+        }).catch(() => {}),
+      ]),
     );
     return;
   }

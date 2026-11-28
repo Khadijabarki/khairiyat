@@ -432,6 +432,12 @@ export default function TalkScreen(props: Props) {
     setHandledCall(callFromLink);
     window.history.replaceState(null, "", window.location.pathname);
     if (!callId) return;
+    // Stop other open tabs and clear the ringing notification on this device straight away.
+    channelRef.current?.postMessage({ type: "call-ended", callId });
+    navigator.serviceWorker?.ready
+      .then((registration) => registration.getNotifications({ tag: "khairiyat-call" }))
+      .then((list) => list.forEach((notification) => notification.close()))
+      .catch(() => {});
     fetch("/api/call/respond", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -449,8 +455,18 @@ export default function TalkScreen(props: Props) {
   // - releases the microphone and connection when the page is closed or left
   useEffect(() => {
     const channel = new BroadcastChannel(CALL_CHANNEL);
-    channel.onmessage = () => {
-      if (activeRef.current) end();
+    channel.onmessage = (event: MessageEvent) => {
+      const message = event.data;
+      if (message === "call-started") {
+        if (activeRef.current) end();
+      } else if (message?.type === "call-ended" && isCallId(message.callId)) {
+        // Answered or put off in another tab: stop ringing here.
+        setCallFromWorker((current) => (current === message.callId ? null : current));
+        if (new URLSearchParams(window.location.search).get("call") === message.callId) {
+          setHandledCall(message.callId);
+          window.history.replaceState(null, "", window.location.pathname);
+        }
+      }
     };
     channelRef.current = channel;
 

@@ -135,6 +135,25 @@ async function showMissedCall(parent: Parent, callId: string): Promise<void> {
   if (gone.length) await supabase.from("push_subscriptions").delete().in("id", gone);
 }
 
+// After an answer or "Later" on one phone or computer, the others must stop ringing too.
+// The quiet notification takes the place of the ringing one.
+export async function endCallEverywhere(parent: Parent, callId: string, action: "answer" | "decline"): Promise<void> {
+  const supabase = db();
+  if (!supabase || !setupPush()) return;
+  const { data: subs } = await supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("parent_id", parent.id);
+  const { gone } = await sendPush(
+    (subs ?? []) as StoredDevice[],
+    {
+      type: "ended",
+      callId,
+      url: `/talk/${parent.talkToken}`,
+      title: action === "answer" ? "✓ کال اٹھا لی گئی" : "⏰ ٹھیک ہے، خیریت بعد میں کال کرے گی",
+    },
+    { ttlSeconds: RING_MINUTES * 60, topic: "khairiyat-call" },
+  );
+  if (gone.length) await supabase.from("push_subscriptions").delete().in("id", gone);
+}
+
 // The parent answered or pressed "Later" (only for their own call that is still ringing).
 export async function respondToCall(parent: Parent, callId: string, action: "answer" | "decline"): Promise<boolean> {
   const supabase = db();
