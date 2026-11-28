@@ -51,8 +51,8 @@ To try the whole flow, create a family account, add a parent, open their QR link
 **For the family**
 - Sign up, add parents (medicines, interests, daily call time, voice), and share a private link by QR code
 - **Calls at medicine times**: each medicine can have its own time; Khairiyat also calls then and asks about that medicine
-- Each call rings for 5 minutes, then shows as a missed call; Khairiyat calls again 5 minutes later and, if that is also unanswered, tells the family
-- **Daily call** at the chosen time, with a retry if unanswered and an alert on the dashboard if the retry is also unanswered; **Call now** button
+- Each call rings for 5 minutes (or 2, chosen for each family member), then shows as a missed call; after no answer or "Later", Khairiyat calls again 15 minutes after the first call and, if that one isn't answered either, tells the family
+- **Daily call** at the chosen time, with a retry if unanswered and an alert on the dashboard if the retry is also unanswered; **Call now** button, which waits while a call is ringing or in progress and shows what is happening
 - After each conversation: a short summary, scores (mood, sleep, pain, medicine, food) and a message preview
 - **Notifications on the family's phone or computer** (optional, one tap to turn on): emergencies during the call, the summary after it, and unanswered calls
 - Live alerts during the call, 7-day charts and history; the dashboard refreshes by itself
@@ -81,7 +81,7 @@ flowchart LR
 1. The browser asks our server for a **single-use token**. The server locks the model, voice and instructions (including memory and medicines) into it, so the API key never reaches the browser.
 2. Audio streams between the phone and Gemini Live. The AI calls a `raise_alert` tool when it hears something worrying.
 3. After the call, the server asks Gemini for a summary in a fixed JSON shape, checks every field again, and saves **only the summary and scores**. If the AI is busy, a basic check-in is saved and the summary is retried.
-4. A timer calls the scheduler every few minutes. It rings parents whose call time has arrived, using Web Push.
+4. A timer calls the scheduler every minute. It rings parents whose call time has arrived, using Web Push, and handles unanswered calls.
 
 ## Privacy and security
 
@@ -98,7 +98,7 @@ flowchart LR
 ## Current limits (prototype)
 
 - Calls ring the **installed web app over the internet**. With the app closed, the phone shows a notification with vibration; it does not ring continuously like a phone call, and some phones or Chrome's spam protection may delay or hide it. Real phone-line calls are not built.
-- Timer accuracy depends on the scheduling service (a few minutes).
+- Timer accuracy depends on the scheduling service: about a minute with a one-minute timer, longer if only the 5-minute GitHub Actions backup runs.
 - Family alerts are **web notifications** (and appear on the dashboard). No WhatsApp or SMS is sent. They can be delayed or hidden by the phone or browser, and on iPhone web notifications need extra setup that this prototype doesn't provide. The shared demo account never sends them. An optional Telegram message exists in the code (one chat for the whole server, not enabled in the live demo).
 - Gemini's spoken Punjabi sounds unnatural, so replies default to Urdu.
 - A voice message plays only when the parent starts or answers a conversation. Recording formats differ between browsers, so a message may not play on some older phones.
@@ -167,13 +167,13 @@ npm run setup:demo   # demo account, demo parents and sample data
 npm run dev          # http://localhost:3000
 ```
 
-**Daily calls:** have a scheduler send a request to `/api/cron/tick` every 5 minutes with the header `Authorization: Bearer <CRON_SECRET>`.
+**Daily calls:** have a scheduler send a request to `/api/cron/tick` every minute with the header `Authorization: Bearer <CRON_SECRET>`.
 
 ## Tests
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 118 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm test` | 135 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
 | `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 

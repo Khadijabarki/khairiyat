@@ -10,7 +10,8 @@ import { removeFamilyDevices, saveFamilyDevice } from "@/lib/family-devices";
 import { readSubscription } from "@/lib/push-endpoint";
 import { FAMILY_DEVICE_COOKIE, SESSION_COOKIE_OPTIONS } from "@/lib/session-cookie";
 import { cookies } from "next/headers";
-import { deviceCount, ringParent } from "@/lib/calls";
+import { currentLiveCall, deviceCount, ringParent } from "@/lib/calls";
+import { RING_MINUTES, ringMinutesFrom } from "@/lib/call-rules";
 import { getFamilyParent } from "@/lib/data";
 import { db } from "@/lib/db";
 import { rateLimit } from "@/lib/security";
@@ -26,6 +27,7 @@ import { isClockTime } from "@/lib/time";
 import { getLang } from "@/lib/i18n-server";
 import { MAX_RELATION, OTHER_RELATION, findRelation } from "@/lib/relations";
 import { toUrduName } from "@/lib/urdu-script";
+import { capitalName } from "@/lib/urdu-names";
 
 // On an error, the typed-in values are sent back so the form can show them again
 // (React clears a form after it is submitted).
@@ -50,9 +52,34 @@ function relationFrom(form: FormData): string {
   return findRelation(chosen) ? chosen : "";
 }
 
-// True if the database doesn't have the new column yet (the SQL hasn't been run).
-const missingRelationColumn = (error: { code?: string; message?: string } | null) =>
-  error?.code === "PGRST204" && Boolean(error.message?.includes("relation"));
+type SaveError = { code?: string; message?: string } | null;
+
+// True if the database doesn't have this newer column yet (the SQL hasn't been run).
+const missingColumn = (error: SaveError, column: string) =>
+  error?.code === "PGRST204" && Boolean(error.message?.includes(`'${column}'`));
+
+// Saves a family member. Until supabase/schema.sql has been run again, the newer columns
+// are left out. A 2-minute ringing choice is never dropped quietly: that save fails.
+async function saveRow<R extends { error: SaveError }>(
+  row: Record<string, unknown>,
+  save: (row: Record<string, unknown>) => PromiseLike<R>,
+): Promise<R> {
+  const rest = { ...row };
+  const optional = rest.ring_minutes === RING_MINUTES ? ["relation", "ring_minutes"] : ["relation"];
+  let result = await save(rest);
+  for (let i = 0; i < optional.length; i++) {
+    const column = optional.find((name) => name in rest && missingColumn(result.error, name));
+    if (!column) break;
+    delete rest[column];
+    result = await save(rest);
+  }
+  return result;
+}
+
+const saveProblem = (error: SaveError) =>
+  missingColumn(error, "ring_minutes")
+    ? "The 2-minute choice can't be saved yet. Run supabase/schema.sql in Supabase first, or choose 5 minutes."
+    : "Could not save. Please try again.";
 
 // Fills the two Urdu names, so the family only has to type in English.
 async function withUrduNames(row: Record<string, unknown>): Promise<Record<string, unknown>> {
@@ -84,6 +111,7 @@ function echoValues(form: FormData): ParentFormValues {
     companionGender: form.get("companion_gender") === "male" ? "male" : "female",
     language: (["urdu", "auto", "punjabi"].includes(String(form.get("language"))) ? form.get("language") : "urdu") as ParentFormValues["language"],
     checkinTime: text(form, "checkin_time", 5) || "10:00",
+    ringMinutes: ringMinutesFrom(form.get("ring_minutes")),
     medicines,
     topics: text(form, "topics", 400).split(",").map((x) => x.trim()).filter(Boolean),
     consentGiven: form.get("consent") === "on",
@@ -92,9 +120,9 @@ function echoValues(form: FormData): ParentFormValues {
 
 // Reads and checks the parent form. Returns the database row, or an error message.
 function parseParentForm(form: FormData): { row: Record<string, unknown> } | { error: string } {
-  const name = text(form, "name", 80);
-  const nickname = text(form, "nickname", 40);
-  const childName = text(form, "child_name", 40);
+  const name = capitalName(text(form, "name", 80));
+  const nickname = capitalName(text(form, "nickname", 40));
+  const childName = capitalName(text(form, "child_name", 40));
   if (!name || !nickname || !childName) return { error: "Please fill in the parent's name, what you call them, and your name." };
   const relation = relationFrom(form);
 
@@ -142,6 +170,7 @@ function parseParentForm(form: FormData): { row: Record<string, unknown> } | { e
       medicines,
       topics,
       checkin_time: checkinTime,
+      ring_minutes: ringMinutesFrom(form.get("ring_minutes")),
       consent_given: true,
     },
   };
@@ -162,14 +191,10 @@ export async function createParent(_prev: ParentFormState, form: FormData): Prom
   const insert = (row: Record<string, unknown>) =>
     supabase.from("parents").insert({ ...row, family_id: user.id, talk_token: newTalkToken() }).select("id").single();
   const row = await withUrduNames(parsed.row);
-  let { data, error } = await insert(row);
-  if (missingRelationColumn(error)) {
-    const { relation: _unused, ...rest } = row;
-    ({ data, error } = await insert(rest));
-  }
+  const { data, error } = await saveRow(row, insert);
   if (error || !data) {
     console.error("createParent: database error", error?.code ?? "");
-    return { error: await say("Could not save. Please try again."), values: echoValues(form) };
+    return { error: await say(saveProblem(error)), values: echoValues(form) };
   }
   revalidatePath("/family");
   redirect(`/family/${data.id}?added=1`);
@@ -187,14 +212,10 @@ export async function updateParent(parentId: string, _prev: ParentFormState, for
   const supabase = db();
   const update = (row: Record<string, unknown>) => supabase!.from("parents").update(row).eq("id", parent.id).eq("family_id", user.id);
   const row = await withUrduNames(parsed.row);
-  let { error } = await update(row);
-  if (missingRelationColumn(error)) {
-    const { relation: _unused, ...rest } = row;
-    ({ error } = await update(rest));
-  }
+  const { error } = await saveRow(row, update);
   if (error) {
     console.error("updateParent: database error", error.code);
-    return { error: await say("Could not save. Please try again."), values: echoValues(form) };
+    return { error: await say(saveProblem(error)), values: echoValues(form) };
   }
   revalidatePath(`/family/${parent.id}`);
   redirect(`/family/${parent.id}`);
@@ -244,6 +265,13 @@ export async function callNow(parentId: string, _prev: CallNowState): Promise<Ca
   const user = await requireUser();
   const parent = await getFamilyParent(user.id, parentId); // ownership check
   if (!parent) return { message: await say("Not found.") };
+  // Never a second call on top of one that is ringing or being talked on (e.g. pressed on
+  // another device): just show what is happening.
+  const live = await currentLiveCall(parent);
+  if (live.state === "ringing" || live.state === "talking") {
+    revalidatePath(`/family/${parent.id}`);
+    return { ok: true };
+  }
   // At most one call a minute per parent, so a phone can't be flooded with calls.
   if (!rateLimit(`callnow:${parent.id}`, 1, 60 * 1000)) return { message: await say("Please wait a minute before calling again.") };
   if ((await deviceCount(parent.id)) === 0) {
@@ -265,7 +293,7 @@ export async function callNow(parentId: string, _prev: CallNowState): Promise<Ca
         : `Couldn't reach ${parent.nickname}'s phone. Open their link again to refresh it.`,
     };
   }
-  return { ok: true, message: ur ? `${parent.nicknameUr} کو کال جا رہی ہے…` : `Calling ${parent.nickname}… their phone is ringing.` };
+  return { ok: true }; // the refreshed page shows the ringing call
 }
 
 // A voice message from the family, played to the parent at the start of their next conversation.

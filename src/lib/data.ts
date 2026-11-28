@@ -5,9 +5,10 @@
 // - the parent's own phone: only through the secret talk link (talk_token)
 // Past check-ins give Khairiyat its memory of previous days.
 import "server-only";
+import { ringMinutesFrom, type RingMinutes } from "./call-rules";
 import { db } from "./db";
 import { readMedicines, type Medicine } from "./medicines";
-import { urduName } from "./urdu-names";
+import { capitalName, urduName } from "./urdu-names";
 
 export type Gender = "female" | "male";
 
@@ -34,6 +35,7 @@ export type Parent = {
   topics: string[]; // things they enjoy talking about
   companion: { gender: Gender; voice: string }; // Khairiyat talks as a daughter or a son
   checkinTime: string; // daily call time, "HH:MM" in Pakistan time
+  ringMinutes: RingMinutes; // how long a call rings on their phone
   talkToken: string; // secret part of the parent's talk link
   consentGiven: boolean;
   isDemo: boolean;
@@ -67,6 +69,7 @@ type ParentRow = {
   medicines: unknown;
   topics: string[] | null;
   checkin_time: string;
+  ring_minutes?: number | null; // missing until supabase/schema.sql has added the column
   talk_token: string;
   consent_given: boolean;
   is_demo: boolean;
@@ -78,12 +81,12 @@ function toParent(row: ParentRow): Parent {
   return {
     id: row.id,
     familyId: row.family_id,
-    name: row.name,
+    name: capitalName(row.name),
     gender: row.gender === "male" ? "male" : "female",
-    nickname: row.nickname,
+    nickname: capitalName(row.nickname),
     relation: row.relation ?? "",
     nicknameUr: urduName(row.nickname_ur, row.nickname),
-    childName: row.child_name,
+    childName: capitalName(row.child_name),
     childNameUr: urduName(row.child_name_ur, row.child_name),
     childPhone: row.child_phone,
     language: row.language === "auto" || row.language === "punjabi" ? row.language : "urdu",
@@ -91,6 +94,7 @@ function toParent(row: ParentRow): Parent {
     topics: row.topics ?? [],
     companion: { gender: companionGender, voice: VOICES[companionGender] },
     checkinTime: row.checkin_time.slice(0, 5),
+    ringMinutes: ringMinutesFrom(row.ring_minutes),
     talkToken: row.talk_token,
     consentGiven: row.consent_given,
     isDemo: row.is_demo,

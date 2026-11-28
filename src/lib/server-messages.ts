@@ -25,6 +25,8 @@ export const SERVER_MESSAGES_UR: Record<string, string> = {
   "The database is not available.": "ڈیٹابیس دستیاب نہیں۔",
   "A family can add up to 10 parents.": "ایک خاندان زیادہ سے زیادہ 10 والدین شامل کر سکتا ہے۔",
   "Could not save. Please try again.": "محفوظ نہیں ہو سکا۔ دوبارہ کوشش کریں۔",
+  "The 2-minute choice can't be saved yet. Run supabase/schema.sql in Supabase first, or choose 5 minutes.":
+    "2 منٹ والا انتخاب ابھی محفوظ نہیں ہو سکتا۔ پہلے Supabase میں supabase/schema.sql چلائیں، یا 5 منٹ چنیں۔",
   "Not found.": "نہیں ملا۔",
   "The demo parents can't be changed. Create your own account to add your parents.": "ڈیمو والدین بدلے نہیں جا سکتے۔ اپنا اکاؤنٹ بنائیں۔",
   "Please wait a minute before calling again.": "دوبارہ کال سے پہلے ایک منٹ انتظار کریں۔",

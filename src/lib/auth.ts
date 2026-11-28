@@ -9,6 +9,7 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { SESSION_COOKIE_OPTIONS } from "./session-cookie";
+import { capitalName } from "./urdu-names";
 import { connection } from "next/server";
 
 export const MAX_NAME = 60;
@@ -51,7 +52,7 @@ export async function currentUser(): Promise<FamilyUser | null> {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) return null;
     const name = data.user.user_metadata?.full_name;
-    return { id: data.user.id, email: data.user.email ?? "", name: typeof name === "string" ? name.slice(0, MAX_NAME) : "" };
+    return { id: data.user.id, email: data.user.email ?? "", name: typeof name === "string" ? capitalName(name.slice(0, MAX_NAME)) : "" };
   } catch {
     return null;
   }

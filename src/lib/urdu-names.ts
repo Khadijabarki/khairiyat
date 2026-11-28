@@ -17,7 +17,15 @@ const KNOWN: Record<string, string> = {
   dadi: "دادی", dada: "دادا", nani: "نانی", nana: "نانا",
   ali: "علی", sana: "ثنا", ayesha: "عائشہ", aisha: "عائشہ", aliya: "عالیہ", aaliya: "عالیہ",
   noreen: "نورین", khadija: "خدیجہ", fatima: "فاطمہ", ahmed: "احمد", ahmad: "احمد", hassan: "حسن",
+  zubaida: "زبیدہ", nimra: "نمرہ", rukhsana: "رخسانہ", shabeer: "شبیر", hamza: "حمزہ", zainab: "زینب",
+  usman: "عثمان", mehwish: "مہوش", mehreen: "مہرین", iqra: "اقرا", bushra: "بشریٰ", saima: "سائمہ",
+  kashif: "کاشف", hafsa: "حفصہ", waqas: "وقاص", sidra: "سدرہ", taimoor: "تیمور", muhammad: "محمد",
+  aslam: "اسلم", begum: "بیگم",
 };
+
+// "api" -> "Api", "muhammad aslam" -> "Muhammad Aslam". The rest of each word is left as typed.
+export const capitalName = (name: string) =>
+  name.replace(/(^|\s)([a-z])/g, (_match, space: string, letter: string) => space + letter.toUpperCase());
 
 // The Urdu spelling if every word is known, otherwise null.
 export function knownUrdu(name: string): string | null {

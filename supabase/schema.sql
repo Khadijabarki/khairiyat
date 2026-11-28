@@ -34,6 +34,9 @@ create index if not exists parents_family on public.parents (family_id);
 -- How the family member is related (e.g. mother, phuppo, or the family's own words).
 alter table public.parents add column if not exists relation text not null default '' check (char_length(relation) <= 30);
 
+-- How long a call rings on this person's phone, in minutes.
+alter table public.parents add column if not exists ring_minutes smallint not null default 5 check (ring_minutes in (2, 5));
+
 -- ---------- Daily check-ins (one row per finished call) ----------
 create table if not exists public.checkins (
   id              uuid primary key default gen_random_uuid(),
@@ -115,6 +118,8 @@ create table if not exists public.calls (
   answered_at  timestamptz,
   devices      smallint not null default 0                        -- how many phones the call reached
 );
+-- When the conversation of an answered call finished (the dashboard shows "in progress" until then).
+alter table public.calls add column if not exists ended_at timestamptz;
 create index if not exists calls_parent_time on public.calls (parent_id, created_at desc);
 create index if not exists calls_ringing on public.calls (status, created_at) where status = 'ringing';
 

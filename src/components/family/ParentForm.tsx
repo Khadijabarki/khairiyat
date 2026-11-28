@@ -3,6 +3,7 @@
 import { useActionState, useState } from "react";
 import type { ParentFormState } from "@/app/family/actions";
 import { useLang } from "../i18n/LangProvider";
+import { RETRY_MINUTES, RING_MINUTES, SHORT_RING_MINUTES, type RingMinutes } from "@/lib/call-rules";
 import { MAX_RELATION, OTHER_RELATION, RELATIONS, findRelation } from "@/lib/relations";
 import { knownUrdu } from "@/lib/urdu-names";
 
@@ -19,6 +20,7 @@ export type ParentFormValues = {
   companionGender: "female" | "male";
   language: "urdu" | "auto" | "punjabi";
   checkinTime: string;
+  ringMinutes: RingMinutes;
   medicines: { name: string; when: string; time?: string }[];
   topics: string[];
   consentGiven: boolean;
@@ -36,6 +38,7 @@ export const EMPTY_PARENT: ParentFormValues = {
   companionGender: "female",
   language: "urdu",
   checkinTime: "10:00",
+  ringMinutes: RING_MINUTES,
   medicines: [],
   topics: [],
   consentGiven: false,
@@ -62,16 +65,21 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
     !startRelation ? "" : findRelation(startRelation) ? startRelation : OTHER_RELATION,
   );
 
-  // While typing an English name, write the Urdu one too if we know it. Anything the family
-  // typed in Urdu themselves is left alone; other names are filled in when saved.
-  function fillUrdu(input: HTMLInputElement, urduField: string) {
+  // The Urdu name follows the English one: written at once if we know it, otherwise emptied
+  // so it is filled in when saved. Urdu the family types now is left alone, and going back
+  // to the saved English name brings back its saved Urdu.
+  function fillUrdu(input: HTMLInputElement, urduField: string, saved: { name: string; urdu: string }) {
     const target = input.form?.elements.namedItem(urduField) as HTMLInputElement | null;
-    if (!target) return;
-    if (target.value && target.value !== target.dataset.auto) return;
-    const urdu = knownUrdu(input.value) ?? "";
-    target.value = urdu;
-    target.dataset.auto = urdu;
+    if (!target || target.dataset.typed) return;
+    const unchanged = saved.name !== "" && input.value.trim().toLowerCase() === saved.name.trim().toLowerCase();
+    target.value = unchanged ? saved.urdu : (knownUrdu(input.value) ?? "");
   }
+  // Remembers that the family wrote this Urdu themselves (emptying the box undoes that).
+  function markTyped(input: HTMLInputElement) {
+    input.dataset.typed = input.value ? "yes" : "";
+  }
+  const savedNickname = { name: initialValues.nickname, urdu: initialValues.nicknameUr };
+  const savedChild = { name: initialValues.childName, urdu: initialValues.childNameUr };
 
   // Picking a relationship fills in the gender and a suggested way to address them.
   function chooseRelation(select: HTMLSelectElement) {
@@ -82,9 +90,9 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
     field("gender").value = relation.gender;
     const suggested = (value: string, key: "call" | "callUr") => !value || RELATIONS.some((x) => x[key] === value);
     if (relation.call && suggested(field("nickname").value, "call")) field("nickname").value = relation.call;
-    if (relation.callUr && suggested(field("nickname_ur").value, "callUr")) {
+    // Only together with the English word it belongs to, and never over typed Urdu.
+    if (relation.callUr && field("nickname").value === relation.call && !field("nickname_ur").dataset.typed) {
       field("nickname_ur").value = relation.callUr;
-      field("nickname_ur").dataset.auto = relation.callUr;
     }
   }
   // After an error, show what was typed (the server sends it back), not the starting values.
@@ -125,12 +133,12 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
           </div>
           <div>
             <label htmlFor="nickname" className={label}>{t("What do you call them?", "آپ انہیں کیا کہہ کر بلاتے ہیں؟")}</label>
-            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} onInput={(e) => fillUrdu(e.currentTarget, "nickname_ur")} />
+            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "nickname_ur", savedNickname)} />
             <p className={hint}>{t("Khairiyat will address them by this name.", "خیریت انہیں اسی نام سے پکارے گی۔")}</p>
           </div>
           <div>
             <label htmlFor="nickname_ur" className={label}>{t("Same in Urdu (filled automatically)", "اردو میں (خود لکھا جائے گا)")}</label>
-            <input id="nickname_ur" name="nickname_ur" dir="rtl" maxLength={40} defaultValue={values.nicknameUr} placeholder="امی" className={`${input} font-urdu`} />
+            <input id="nickname_ur" name="nickname_ur" dir="rtl" maxLength={40} defaultValue={values.nicknameUr} placeholder="امی" className={`${input} font-urdu`} onInput={(e) => markTyped(e.currentTarget)} />
             <p className={hint}>{t("Shown on their screen.", "ان کی اسکرین پر دکھایا جائے گا۔")}</p>
           </div>
         </div>
@@ -149,6 +157,18 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
               <option value="female">{t("A woman of the family (female voice)", "گھر کی خاتون کی طرح (زنانہ آواز)")}</option>
               <option value="male">{t("A man of the family (male voice)", "گھر کے مرد کی طرح (مردانہ آواز)")}</option>
             </select>
+          </div>
+          <div className="sm:col-span-2">
+            <p id="ring-label" className={label}>{t("How long a call rings", "کال کتنی دیر بجے")}</p>
+            <div role="radiogroup" aria-labelledby="ring-label" className="mt-1 grid grid-cols-2 gap-2">
+              {[RING_MINUTES, SHORT_RING_MINUTES].map((minutes) => (
+                <label key={minutes} className="flex cursor-pointer items-center justify-center gap-2 rounded-2xl border border-stone-300 px-3 py-2.5 text-sm font-medium text-stone-700 has-checked:border-emerald-700 has-checked:bg-sage-soft has-checked:text-emerald-900">
+                  <input type="radio" name="ring_minutes" value={minutes} defaultChecked={values.ringMinutes === minutes} className="size-4 accent-emerald-700" />
+                  {t(`${minutes} minutes`, `${minutes} منٹ`)}
+                </label>
+              ))}
+            </div>
+            <p className={hint}>{t(`After no answer or "Later", it calls again ${RETRY_MINUTES} minutes after the first call. 2 minutes is handy for a live demo.`, `جواب نہ ملے یا "بعد میں" دبائیں تو پہلی کال کے ${RETRY_MINUTES} منٹ بعد دوبارہ کال آتی ہے۔ لائیو ڈیمو کے لیے 2 منٹ آسان ہے۔`)}</p>
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="language" className={label}>{t("Language", "گفتگو کی زبان")}</label>
@@ -182,11 +202,11 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="child_name" className={label}>{t("Your name", "آپ کا نام")}</label>
-            <input id="child_name" name="child_name" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} onInput={(e) => fillUrdu(e.currentTarget, "child_name_ur")} />
+            <input id="child_name" name="child_name" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "child_name_ur", savedChild)} />
           </div>
           <div>
             <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (filled automatically)", "آپ کا نام اردو میں (خود لکھا جائے گا)")}</label>
-            <input id="child_name_ur" name="child_name_ur" dir="rtl" maxLength={40} defaultValue={values.childNameUr} placeholder="علی" className={`${input} font-urdu`} />
+            <input id="child_name_ur" name="child_name_ur" dir="rtl" maxLength={40} defaultValue={values.childNameUr} placeholder="علی" className={`${input} font-urdu`} onInput={(e) => markTyped(e.currentTarget)} />
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="child_phone" className={label}>{t("Your phone (optional)", "آپ کا فون (اختیاری)")}</label>

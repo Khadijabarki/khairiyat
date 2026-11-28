@@ -6,8 +6,9 @@
 // 2. Answer opens the talk screen and the conversation starts. Later = "declined".
 // 3. The scheduler (src/app/api/cron/tick) runs every few minutes:
 //    - rings each parent at their daily call time and at each medicine time
-//    - a call rings for 5 minutes, then becomes a "missed call"; it rings again 10 minutes
-//      after the first call; still no answer -> alerts the family (see call-rules.ts).
+//    - a call rings for 5 or 2 minutes (chosen per family member), then becomes a "missed
+//      call"; after no answer or "Later" it rings again 15 minutes after the first call;
+//      if that one isn't answered either, the family is told (see call-rules.ts).
 //
 // Prototype note: this rings the parent's installed Khairiyat app over the internet.
 // Production adds ordinary phone-line calls for parents without a smartphone.
@@ -19,10 +20,11 @@ import { sendPush, setupPush, type StoredDevice } from "./push";
 import type { PushSubscriptionInput } from "./push-endpoint";
 import {
   GIVE_UP_MINUTES,
-  RETRY_AFTER_DECLINE_MINUTES,
   RETRY_MINUTES,
-  RING_MINUTES,
   SCHEDULER_GRACE_SECONDS,
+  SHORT_RING_MINUTES,
+  liveCall,
+  type LiveCall,
   nextStep,
   ringsUntil,
   stoppedRinging,
@@ -44,6 +46,7 @@ export type Call = {
   attempt: number;
   status: CallStatus;
   answered_at: string | null;
+  ended_at?: string | null; // missing until supabase/schema.sql has added the column
   devices: number;
 };
 
@@ -96,7 +99,7 @@ export async function ringParent(parent: Parent, kind: CallKind, attempt = 1): P
   const { data: subs } = await supabase.from("push_subscriptions").select("id, endpoint, p256dh, auth").eq("parent_id", parent.id);
   // What the phone shows. The talk link is opened when they answer (?call= tells the screen which call).
   // `until` lets the phone stop ringing exactly when this call ends, however late it is opened.
-  const until = ringsUntil(call.created_at);
+  const until = ringsUntil(call.created_at, parent.ringMinutes);
   const payload = {
     type: "call",
     callId: call.id,
@@ -107,7 +110,7 @@ export async function ringParent(parent: Parent, kind: CallKind, attempt = 1): P
   };
 
   const { reached, gone } = await sendPush((subs ?? []) as StoredDevice[], payload, {
-    ttlSeconds: RING_MINUTES * 60,
+    ttlSeconds: parent.ringMinutes * 60,
     topic: "khairiyat-call",
   });
   if (gone.length) await supabase.from("push_subscriptions").delete().in("id", gone);
@@ -150,7 +153,7 @@ export async function endCallEverywhere(parent: Parent, callId: string, action: 
       url: `/talk/${parent.talkToken}`,
       title: action === "answer" ? "✓ کال اٹھا لی گئی" : "⏰ ٹھیک ہے، خیریت بعد میں کال کرے گی",
     },
-    { ttlSeconds: RING_MINUTES * 60, topic: "khairiyat-call" },
+    { ttlSeconds: parent.ringMinutes * 60, topic: "khairiyat-call" },
   );
   if (gone.length) await supabase.from("push_subscriptions").delete().in("id", gone);
 }
@@ -171,6 +174,32 @@ export async function respondToCall(parent: Parent, callId: string, action: "ans
   return Boolean(data?.length);
 }
 
+// The conversation of an answered call has finished (or could not start).
+export async function markCallEnded(parent: Parent, callId: string): Promise<boolean> {
+  const supabase = db();
+  if (!supabase) return false;
+  const { data, error } = await supabase
+    .from("calls")
+    .update({ ended_at: new Date().toISOString() })
+    .eq("id", callId)
+    .eq("parent_id", parent.id)
+    .is("ended_at", null)
+    .select("id");
+  if (error) console.error("markCallEnded: database error", error.code);
+  return Boolean(data?.length);
+}
+
+// What is happening with this person's latest call right now.
+export async function currentLiveCall(parent: Parent): Promise<LiveCall> {
+  const supabase = db();
+  if (!supabase) return { state: "idle" };
+  const [call, { data: talks }] = await Promise.all([
+    latestCall(parent.id),
+    supabase.from("checkins").select("created_at").eq("parent_id", parent.id).eq("is_sample", false).order("created_at", { ascending: false }).limit(1),
+  ]);
+  return liveCall(call, talks?.[0]?.created_at, Date.now(), parent.ringMinutes);
+}
+
 // The most recent call, for the dashboard.
 export async function latestCall(parentId: string): Promise<Call | null> {
   const supabase = db();
@@ -183,8 +212,8 @@ export async function latestCall(parentId: string): Promise<Call | null> {
 // can show it. null if there is none.
 export async function ringingCall(parent: Parent): Promise<{ callId: string; until: number } | null> {
   const call = await latestCall(parent.id);
-  if (!call || call.status !== "ringing" || stoppedRinging(call.created_at, Date.now())) return null;
-  return { callId: call.id, until: ringsUntil(call.created_at) };
+  if (!call || call.status !== "ringing" || stoppedRinging(call.created_at, Date.now(), parent.ringMinutes)) return null;
+  return { callId: call.id, until: ringsUntil(call.created_at, parent.ringMinutes) };
 }
 
 // ---------- The scheduler ----------
@@ -202,16 +231,22 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
     .from("calls")
     .select("*")
     .or(
-      `and(status.eq.ringing,created_at.lt.${before(RING_MINUTES)}),` +
+      // The shortest ringing time here; nextStep then waits for each person's own.
+      `and(status.eq.ringing,created_at.lt.${before(SHORT_RING_MINUTES)}),` +
         `and(status.eq.missed,attempt.eq.1,created_at.lt.${before(RETRY_MINUTES)}),` +
-        `and(status.eq.declined,created_at.lt.${before(RETRY_AFTER_DECLINE_MINUTES)})`,
+        `and(status.eq.declined,created_at.lt.${before(SHORT_RING_MINUTES)})`,
     )
     .gte("created_at", startIso)
     .order("created_at", { ascending: false })
     .limit(200);
 
   for (const call of (open as Call[]) ?? []) {
-    const step = nextStep(call, now.getTime());
+    // Long settled: nothing to do, so don't look the person up every minute.
+    if (call.status !== "ringing" && now.getTime() - Date.parse(call.created_at) > GIVE_UP_MINUTES * 60 * 1000) continue;
+    // How long this call rings is chosen for each family member.
+    const parent = await getParentById(call.parent_id);
+    if (!parent) continue;
+    const step = nextStep(call, now.getTime(), parent.ringMinutes);
     if (step === "wait" || step === "done") continue;
 
     // Settled already if there is a newer call, or the parent has talked since this one.
@@ -220,11 +255,13 @@ export async function runScheduler(now = new Date()): Promise<SchedulerReport> {
       supabase.from("checkins").select("id", { count: "exact", head: true }).eq("parent_id", call.parent_id).eq("is_sample", false).gt("created_at", call.created_at),
     ]);
     // Close the call first, so the next run can't tell the family a second time.
-    if (call.status === "ringing" || step === "alert") await supabase.from("calls").update({ status: "missed" }).eq("id", call.id);
+    if (call.status === "ringing" || step === "alert") {
+      // Only if nothing changed meanwhile: an answer given at this very moment must win.
+      const { data: closed } = await supabase.from("calls").update({ status: "missed" }).eq("id", call.id).eq("status", call.status).select("id");
+      if (!closed?.length) continue;
+    }
     if (newer || talked) continue;
 
-    const parent = await getParentById(call.parent_id);
-    if (!parent) continue;
     if (step === "retry") {
       await ringParent(parent, "retry", call.attempt + 1);
       report.retries++;

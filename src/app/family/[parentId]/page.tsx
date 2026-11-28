@@ -168,7 +168,7 @@ async function ParentDashboard({ params, searchParams }: DashboardProps) {
               {t(`No check-ins yet. Open ${nickname}'s talk screen to have the first conversation.`, `ابھی کوئی بات نہیں ہوئی۔ پہلی بات کے لیے ${nickname} کی اسکرین کھولیں۔`)}
             </p>
           )}
-          <CallPanel parent={parent} devices={devices} lastCall={lastCall} nowMs={nowMs} />
+          <CallPanel parent={parent} devices={devices} lastCall={lastCall} talkedAt={checkins.find((c) => !c.is_sample)?.created_at} nowMs={nowMs} />
           <MedicineCard parent={parent} latestTaken={latest?.medicine_taken ?? null} />
         </div>
         <div className="min-w-0 lg:col-span-2">

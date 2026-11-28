@@ -2,6 +2,11 @@
 
 import { useEffect } from "react";
 import { useLang } from "../i18n/LangProvider";
+import { CallIcon, CrossIcon } from "../ui/Icon";
+
+// One size for both buttons, following the screen's width and height.
+const CALL_CIRCLE = "flex size-[clamp(4.5rem,min(23vw,13dvh),6rem)] shrink-0 items-center justify-center rounded-full text-white shadow-xl";
+const CALL_LABEL = "text-[clamp(1.1rem,5vw,1.35rem)] leading-[2]";
 
 // Full-screen "Khairiyat is calling" screen, like a real incoming phone call:
 // a ringing sound, vibration (on Android), and big Answer / Later buttons.
@@ -60,7 +65,7 @@ export default function IncomingCall({ childName, onAnswer, onLater }: Props) {
       className={`${ur ? "font-urdu " : ""}fixed inset-0 z-50 flex flex-col items-center justify-between bg-gradient-to-b from-[#1c422e] to-[#0b1f15] px-6 pt-[max(3rem,env(safe-area-inset-top))] pb-[max(2.5rem,env(safe-area-inset-bottom))] text-white`}
     >
       <div className="text-center">
-        <p className="text-[clamp(1.1rem,5vw,1.4rem)] leading-[2] text-emerald-200">{t("Incoming call…", "کال آ رہی ہے…")}</p>
+        <p className="text-[clamp(1.1rem,5vw,1.4rem)] leading-[2] text-[#bdd8c5]">{t("Incoming call…", "کال آ رہی ہے…")}</p>
         <div className="relative mx-auto mt-6 flex size-[min(48vw,30dvh,12rem)] items-center justify-center">
           <span className="absolute inset-0 animate-ping rounded-full bg-emerald-400/30" aria-hidden />
           <span className="relative flex size-full items-center justify-center rounded-full bg-emerald-600 text-[clamp(2rem,10vw,3.2rem)] leading-[2] shadow-2xl">
@@ -70,18 +75,19 @@ export default function IncomingCall({ childName, onAnswer, onLater }: Props) {
         <p className="mt-6 text-[clamp(1.2rem,5.5vw,1.6rem)] leading-[2.1]">{t(`${childName} asked how you are`, `${childName} نے آپ کا حال پوچھا ہے`)}</p>
       </div>
 
-      <div className="flex w-full max-w-sm items-end justify-between gap-6">
-        <button onClick={onLater} className="flex flex-1 flex-col items-center gap-1 active:scale-95">
-          <span className="flex size-20 items-center justify-center rounded-full bg-rose-600 text-3xl shadow-xl" aria-hidden>
-            ✕
+      {/* Two equal columns: both circles are the same size and level on every screen. */}
+      <div className="grid w-full max-w-sm grid-cols-2 gap-6">
+        <button onClick={onLater} className="flex flex-col items-center gap-2 active:scale-95">
+          <span className={`${CALL_CIRCLE} bg-rose-600`}>
+            <CrossIcon className="size-[40%]" />
           </span>
-          <span className="text-[clamp(1.05rem,4.8vw,1.3rem)] leading-[2]">{t("Later", "بعد میں")}</span>
+          <span className={CALL_LABEL}>{t("Later", "بعد میں")}</span>
         </button>
-        <button onClick={onAnswer} className="flex flex-1 flex-col items-center gap-1 active:scale-95">
-          <span className="flex size-24 animate-bounce items-center justify-center rounded-full bg-emerald-500 text-4xl shadow-xl" aria-hidden>
-            📞
+        <button onClick={onAnswer} className="flex flex-col items-center gap-2 active:scale-95">
+          <span className={`${CALL_CIRCLE} bg-emerald-500`}>
+            <CallIcon className="size-[44%]" />
           </span>
-          <span className="text-[clamp(1.15rem,5.2vw,1.45rem)] leading-[2]">{t("Answer", "اٹھائیں")}</span>
+          <span className={CALL_LABEL}>{t("Answer", "اٹھائیں")}</span>
         </button>
       </div>
     </div>

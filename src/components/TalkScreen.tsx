@@ -15,13 +15,14 @@ import { devanagariToRoman } from "@/lib/transliterate";
 import LanguageSwitch from "./i18n/LanguageSwitch";
 import { useLang } from "./i18n/LangProvider";
 import { TALK_LANG_COOKIE } from "@/lib/i18n";
-import { RING_MINUTES } from "@/lib/call-rules";
+import { MAX_TALK_MINUTES, RING_MINUTES } from "@/lib/call-rules";
 import { TIPS_EN } from "@/lib/safety-tips-en";
 import IncomingCall from "./talk/IncomingCall";
 import ParentMessage from "./talk/ParentMessage";
 import PhoneSetup from "./talk/PhoneSetup";
 import { isolate } from "@/lib/urdu-names";
 import BackLink from "./ui/BackLink";
+import { CallIcon } from "./ui/Icon";
 
 // An emergency or worry noticed during the call.
 // source "ai" = the AI called raise_alert; "keywords" = our backup keyword check caught it.
@@ -44,7 +45,7 @@ const STATUS_TEXT: Record<Status, [en: string, ur: string]> = {
   error: ["Try again", "دوبارہ کوشش کریں"],
 };
 
-const MAX_CALL_MS = 6 * 60 * 1000; // end the call automatically after 6 minutes
+const MAX_CALL_MS = MAX_TALK_MINUTES * 60 * 1000; // end the call automatically after this long
 
 type Props = {
   talkToken: string; // secret part of this parent's talk link; proves the requests come from their screen
@@ -115,6 +116,7 @@ export default function TalkScreen(props: Props) {
   const callIdRef = useRef(0);
   const activeRef = useRef(false); // true from the button press until the call ends
   const channelRef = useRef<BroadcastChannel | null>(null);
+  const answeredCallRef = useRef<string | null>(null); // the answered call now being talked on
 
   // Adds transcribed text to the conversation, joining pieces from the same speaker.
   // Any Hindi-script words are turned into Roman Urdu first (e.g. "सब" -> "sab").
@@ -202,6 +204,17 @@ export default function TalkScreen(props: Props) {
     micRef.current = null;
     sessionRef.current = null;
     playerRef.current = null;
+    // Tell the family's dashboard this call is over (keepalive: also while the page closes).
+    const callId = answeredCallRef.current;
+    answeredCallRef.current = null;
+    if (callId) {
+      fetch("/api/call/respond", {
+        method: "POST",
+        keepalive: true,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ talkToken, callId, action: "end" }),
+      }).catch(() => {});
+    }
   }
 
   // Sends the conversation to the server, which makes and saves the family summary
@@ -480,6 +493,7 @@ export default function TalkScreen(props: Props) {
   }
 
   function answerCall() {
+    answeredCallRef.current = incomingCallId;
     respondToCall("answer");
     start(); // the tap on "Answer" also lets the browser use the microphone and speaker
   }
@@ -614,16 +628,18 @@ export default function TalkScreen(props: Props) {
             <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:justify-center">
               <a
                 href={`tel:${helpline.number}`}
-                className="rounded-full bg-white px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-rose-700 shadow-lg active:scale-95"
+                className="flex items-center justify-center gap-3 rounded-full bg-white px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-rose-700 shadow-lg active:scale-95"
               >
-                📞 {t(`Call ${helpline.number}`, `${helpline.labelUr} پر کال`)}
+                <CallIcon className="size-[0.9em]" />
+                {t(`Call ${helpline.number}`, `${helpline.labelUr} پر کال`)}
               </a>
               {childPhone && (
                 <a
                   href={`tel:${childPhone}`}
-                  className="rounded-full bg-rose-900 px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-white shadow-lg active:scale-95"
+                  className="flex items-center justify-center gap-3 rounded-full bg-rose-900 px-6 py-2 text-[clamp(1.15rem,5.5vw,1.5rem)] leading-[2] text-white shadow-lg active:scale-95"
                 >
-                  📞 {t(`Call ${childName}`, `${childName} کو کال`)}
+                  <CallIcon className="size-[0.9em]" />
+                  {t(`Call ${childName}`, `${childName} کو کال`)}
                 </a>
               )}
             </div>

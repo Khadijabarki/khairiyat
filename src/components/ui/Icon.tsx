@@ -26,6 +26,24 @@ const PATHS = {
 
 export type IconName = keyof typeof PATHS;
 
+// Solid symbols for call buttons. Emoji look different on every device and sit off-centre,
+// so these are drawn. Each viewBox is centred on its shape.
+export function CallIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg viewBox="2 3 19 19" fill="currentColor" stroke="currentColor" strokeWidth={1.2} strokeLinejoin="round" aria-hidden className={`shrink-0 ${className}`}>
+      <path d={PATHS.phone} />
+    </svg>
+  );
+}
+
+export function CrossIcon({ className = "size-5" }: { className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.8} strokeLinecap="round" aria-hidden className={`shrink-0 ${className}`}>
+      <path d="M5.5 5.5l13 13m0-13-13 13" />
+    </svg>
+  );
+}
+
 export default function Icon({ name, className = "size-5" }: { name: IconName; className?: string }) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" aria-hidden className={`shrink-0 ${className}`}>

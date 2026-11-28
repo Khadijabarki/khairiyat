@@ -1,6 +1,6 @@
-// The parent answered a call, or pressed "Later".
+// The parent answered a call or pressed "Later", or an answered conversation finished.
 import { after } from "next/server";
-import { endCallEverywhere, respondToCall } from "@/lib/calls";
+import { endCallEverywhere, markCallEnded, respondToCall } from "@/lib/calls";
 import { getParentByTalkToken } from "@/lib/data";
 import { clientIp, isSameOrigin, isValidTalkToken, jsonError, rateLimit, readJson } from "@/lib/security";
 
@@ -14,12 +14,15 @@ export async function POST(request: Request) {
   if (!body || !isValidTalkToken(body.talkToken) || typeof body.callId !== "string" || !UUID.test(body.callId)) {
     return jsonError("Invalid request", 400);
   }
-  if (body.action !== "answer" && body.action !== "decline") return jsonError("Invalid request", 400);
+  if (body.action !== "answer" && body.action !== "decline" && body.action !== "end") return jsonError("Invalid request", 400);
   const parent = await getParentByTalkToken(body.talkToken);
   if (!parent) return jsonError("Not found", 404);
 
   // Only updates a call that belongs to this parent and is still open.
   const callId: string = body.callId;
+  if (body.action === "end") {
+    return Response.json({ ok: await markCallEnded(parent, callId) }, { headers: { "Cache-Control": "no-store" } });
+  }
   const action: "answer" | "decline" = body.action === "answer" ? "answer" : "decline";
   const updated = await respondToCall(parent, callId, action);
   // Stop the ringing elsewhere, after replying so the parent isn't kept waiting.

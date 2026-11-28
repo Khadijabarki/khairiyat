@@ -5,7 +5,7 @@ import type { Parent } from "../../src/lib/data";
 import { buildSystemPrompt } from "../../src/lib/prompt";
 
 const parent = (overrides: Partial<Parent> = {}): Parent => ({
-  id: "test", familyId: "f", name: "Zubaida Begum", gender: "female", nickname: "Ammi", relation: "", nicknameUr: "امی",
+  id: "test", familyId: "f", name: "Zubaida Begum", gender: "female", nickname: "Ammi", relation: "", nicknameUr: "امی", ringMinutes: 5,
   childName: "Ali", childNameUr: "علی", childPhone: "", language: "urdu",
   medicines: [{ name: "BP ki goli", when: "subah" }], topics: ["cricket"],
   companion: { gender: "female", voice: "Sulafat" }, checkinTime: "10:00", talkToken: "demo-test",
