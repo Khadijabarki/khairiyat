@@ -93,6 +93,8 @@ export default function TalkScreen(props: Props) {
   const callFromLink = useSyncExternalStore(noSubscribe, readCallParam, () => null);
   const [callFromWorker, setCallFromWorker] = useState<string | null>(null);
   const [workerUntil, setWorkerUntil] = useState(0); // when that call stops ringing
+  // Calls already answered, put off or ended here: they must never ring again on this screen.
+  const dealtWithRef = useRef(new Set<string>());
   const [handledCall, setHandledCall] = useState<string | null>(null);
   const incomingCallId = callFromWorker ?? (callFromLink && callFromLink !== handledCall ? callFromLink : null);
 
@@ -398,6 +400,7 @@ export default function TalkScreen(props: Props) {
         setCallFromWorker(callId);
       }
       if (type === "call-ended") {
+        dealtWithRef.current.add(callId);
         setCallFromWorker((current) => (current === callId ? null : current));
         if (new URLSearchParams(window.location.search).get("call") === callId) {
           setHandledCall(callId);
@@ -425,6 +428,36 @@ export default function TalkScreen(props: Props) {
     return () => clearTimeout(timer);
   }, [incomingCallId, callFromLink, callFromWorker, workerUntil]);
 
+  // Opened (or brought back) while a call is still ringing, e.g. after pressing "back" and
+  // opening the app again: ask the server and show the call.
+  useEffect(() => {
+    let left = false;
+    async function check() {
+      if (document.visibilityState !== "visible" || activeRef.current) return;
+      try {
+        const res = await fetch("/api/call/current", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ talkToken }),
+        });
+        if (!res.ok) return;
+        const { call } = (await res.json()) as { call: { callId: string; until: number } | null };
+        if (left || !call || activeRef.current || !isCallId(call.callId) || dealtWithRef.current.has(call.callId)) return;
+        if (hasEnded(call.until)) return;
+        setWorkerUntil(call.until);
+        setCallFromWorker(call.callId);
+      } catch {
+        // Offline: the notification still reaches the phone.
+      }
+    }
+    check();
+    document.addEventListener("visibilitychange", check);
+    return () => {
+      left = true;
+      document.removeEventListener("visibilitychange", check);
+    };
+  }, [talkToken]);
+
   // Tells the server how the parent responded to the call, and clears ?call= from the address.
   function respondToCall(action: "answer" | "decline") {
     const callId = incomingCallId;
@@ -432,6 +465,7 @@ export default function TalkScreen(props: Props) {
     setHandledCall(callFromLink);
     window.history.replaceState(null, "", window.location.pathname);
     if (!callId) return;
+    dealtWithRef.current.add(callId);
     // Stop other open tabs and clear the ringing notification on this device straight away.
     channelRef.current?.postMessage({ type: "call-ended", callId });
     navigator.serviceWorker?.ready
@@ -461,6 +495,7 @@ export default function TalkScreen(props: Props) {
         if (activeRef.current) end();
       } else if (message?.type === "call-ended" && isCallId(message.callId)) {
         // Answered or put off in another tab: stop ringing here.
+        dealtWithRef.current.add(message.callId);
         setCallFromWorker((current) => (current === message.callId ? null : current));
         if (new URLSearchParams(window.location.search).get("call") === message.callId) {
           setHandledCall(message.callId);

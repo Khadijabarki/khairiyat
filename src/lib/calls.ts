@@ -25,6 +25,7 @@ import {
   SCHEDULER_GRACE_SECONDS,
   nextStep,
   ringsUntil,
+  stoppedRinging,
 } from "./call-rules";
 import { readMedicines } from "./medicines";
 import { callSlots, callTimeIso, dueSlot, pakistanToday } from "./time";
@@ -176,6 +177,14 @@ export async function latestCall(parentId: string): Promise<Call | null> {
   if (!supabase) return null;
   const { data } = await supabase.from("calls").select("*").eq("parent_id", parentId).order("created_at", { ascending: false }).limit(1);
   return (data?.[0] as Call) ?? null;
+}
+
+// A call that is ringing right now, so a talk screen that was closed and opened again
+// can show it. null if there is none.
+export async function ringingCall(parent: Parent): Promise<{ callId: string; until: number } | null> {
+  const call = await latestCall(parent.id);
+  if (!call || call.status !== "ringing" || stoppedRinging(call.created_at, Date.now())) return null;
+  return { callId: call.id, until: ringsUntil(call.created_at) };
 }
 
 // ---------- The scheduler ----------
