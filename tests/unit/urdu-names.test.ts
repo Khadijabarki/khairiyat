@@ -10,6 +10,7 @@ describe("urdu names", () => {
     assert.equal(knownUrdu("Ayesha"), "عائشہ");
     assert.equal(knownUrdu("Zubaida"), "زبیدہ");
     assert.equal(knownUrdu("nimra"), "نمرہ");
+    assert.equal(knownUrdu("Kalsoom"), "کلثوم");
     assert.equal(knownUrdu("Muhammad Aslam"), "محمد اسلم");
     assert.equal(knownUrdu("Gulrukh"), null);
     assert.equal(knownUrdu(""), null);

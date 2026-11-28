@@ -20,7 +20,7 @@ const KNOWN: Record<string, string> = {
   zubaida: "زبیدہ", nimra: "نمرہ", rukhsana: "رخسانہ", shabeer: "شبیر", hamza: "حمزہ", zainab: "زینب",
   usman: "عثمان", mehwish: "مہوش", mehreen: "مہرین", iqra: "اقرا", bushra: "بشریٰ", saima: "سائمہ",
   kashif: "کاشف", hafsa: "حفصہ", waqas: "وقاص", sidra: "سدرہ", taimoor: "تیمور", muhammad: "محمد",
-  aslam: "اسلم", begum: "بیگم",
+  aslam: "اسلم", begum: "بیگم", kalsoom: "کلثوم", kulsoom: "کلثوم", kalsum: "کلثوم", kulsum: "کلثوم",
 };
 
 // "api" -> "Api", "muhammad aslam" -> "Muhammad Aslam". The rest of each word is left as typed.

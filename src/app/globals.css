@@ -230,6 +230,24 @@
   letter-spacing: 0;
 }
 
+/* Nastaliq letters rise and fall far more than Latin ones. Urdu fields, and every field
+   on the Urdu pages, are taller so that no word is cut off. */
+.ui-input.font-urdu,
+[data-lang="ur"] .ui-input {
+  height: 4rem;
+  padding-block: 0;
+  font-size: 1.25rem;
+  line-height: 2.5;
+}
+/* A little smaller where English may be typed, so a long name fits a phone. */
+[data-lang="ur"] .ui-input:not(.font-urdu) {
+  font-size: 1.0625rem;
+}
+/* Empty fields on Urdu pages start from the right; typed text sets its own direction. */
+[data-lang="ur"] .ui-input:placeholder-shown:not([type="tel"]) {
+  direction: rtl;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

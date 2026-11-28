@@ -108,7 +108,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="name" className={label}>{t("Full name", "پورا نام")}</label>
-            <input id="name" name="name" required maxLength={80} defaultValue={values.name} placeholder="Zubaida Begum" className={input} />
+            <input id="name" name="name" dir="auto" required maxLength={80} defaultValue={values.name} placeholder="Zubaida Begum" className={input} />
           </div>
           <div>
             <label htmlFor="relation" className={label}>{t("Relationship", "رشتہ")}</label>
@@ -120,7 +120,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
               <option value={OTHER_RELATION}>{t("Other (write it)", "کوئی اور (خود لکھیں)")}</option>
             </select>
             {relationChoice === OTHER_RELATION && (
-              <input name="relation_other" maxLength={MAX_RELATION} defaultValue={findRelation(startRelation) ? "" : startRelation} placeholder={t("e.g. Neighbour, Teacher", "مثلاً پڑوسی، استاد")} aria-label={t("Write the relationship", "رشتہ لکھیں")} className={input} />
+              <input name="relation_other" dir="auto" maxLength={MAX_RELATION} defaultValue={findRelation(startRelation) ? "" : startRelation} placeholder={t("e.g. Neighbour, Teacher", "مثلاً پڑوسی، استاد")} aria-label={t("Write the relationship", "رشتہ لکھیں")} className={input} />
             )}
           </div>
           <div>
@@ -133,7 +133,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
           </div>
           <div>
             <label htmlFor="nickname" className={label}>{t("What do you call them?", "آپ انہیں کیا کہہ کر بلاتے ہیں؟")}</label>
-            <input id="nickname" name="nickname" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "nickname_ur", savedNickname)} />
+            <input id="nickname" name="nickname" dir="auto" required maxLength={40} defaultValue={values.nickname} placeholder="Ammi, Phuppo, Appa…" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "nickname_ur", savedNickname)} />
             <p className={hint}>{t("Khairiyat will address them by this name.", "خیریت انہیں اسی نام سے پکارے گی۔")}</p>
           </div>
           <div>
@@ -187,14 +187,14 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="mt-3 space-y-2">
           {medicineRows.map((med, i) => (
             <div key={i} className="grid grid-cols-2 gap-2 sm:grid-cols-[1fr_1fr_9rem]">
-              <input name={`med_name_${i}`} maxLength={60} defaultValue={med?.name ?? ""} placeholder={i === 0 ? "BP ki goli" : t("Medicine", "دوائی")} aria-label={`${t("Medicine", "دوائی")} ${i + 1}`} className={input} />
-              <input name={`med_when_${i}`} maxLength={60} defaultValue={med?.when ?? ""} placeholder={i === 0 ? "subah nashte ke baad" : t("When", "کب")} aria-label={`${t("When to take medicine", "دوائی کا وقت")} ${i + 1}`} className={input} />
+              <input name={`med_name_${i}`} dir="auto" maxLength={60} defaultValue={med?.name ?? ""} placeholder={i === 0 ? "BP ki goli" : t("Medicine", "دوائی")} aria-label={`${t("Medicine", "دوائی")} ${i + 1}`} className={input} />
+              <input name={`med_when_${i}`} dir="auto" maxLength={60} defaultValue={med?.when ?? ""} placeholder={i === 0 ? "subah nashte ke baad" : t("When", "کب")} aria-label={`${t("When to take medicine", "دوائی کا وقت")} ${i + 1}`} className={input} />
               <input name={`med_time_${i}`} type="time" defaultValue={med?.time ?? ""} aria-label={`${t("Call time for medicine", "دوائی کی کال کا وقت")} ${i + 1}`} title={t("Call time", "کال کا وقت")} className={`${input} col-span-2 sm:col-span-1`} />
             </div>
           ))}
         </div>
         <label htmlFor="topics" className={`${label} mt-4`}>{t("Things they enjoy talking about (comma separated)", "پسندیدہ موضوعات (کاما لگا کر لکھیں)")}</label>
-        <input id="topics" name="topics" maxLength={400} defaultValue={values.topics.join(", ")} placeholder="pote ki baatein, cricket, purane gaane" className={input} />
+        <input id="topics" name="topics" dir="auto" maxLength={400} defaultValue={values.topics.join(", ")} placeholder="pote ki baatein, cricket, purane gaane" className={input} />
       </fieldset>
 
       <fieldset className="ui-card p-5">
@@ -202,7 +202,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label htmlFor="child_name" className={label}>{t("Your name", "آپ کا نام")}</label>
-            <input id="child_name" name="child_name" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "child_name_ur", savedChild)} />
+            <input id="child_name" name="child_name" dir="auto" required maxLength={40} defaultValue={values.childName} placeholder="Ali" className={input} autoCapitalize="words" onInput={(e) => fillUrdu(e.currentTarget, "child_name_ur", savedChild)} />
           </div>
           <div>
             <label htmlFor="child_name_ur" className={label}>{t("Your name in Urdu (filled automatically)", "آپ کا نام اردو میں (خود لکھا جائے گا)")}</label>
@@ -210,7 +210,7 @@ export default function ParentForm({ action, values: initialValues, submitLabel,
           </div>
           <div className="sm:col-span-2">
             <label htmlFor="child_phone" className={label}>{t("Your phone (optional)", "آپ کا فون (اختیاری)")}</label>
-            <input id="child_phone" name="child_phone" type="tel" inputMode="tel" maxLength={30} defaultValue={values.childPhone} placeholder="+92 300 1234567" className={input} />
+            <input id="child_phone" name="child_phone" dir="ltr" type="tel" inputMode="tel" maxLength={30} defaultValue={values.childPhone} placeholder="+92 300 1234567" className={input} />
             <p className={hint}>{t("Shown as a \"call your son/daughter\" button on their screen in an emergency.", "ایمرجنسی میں ان کی اسکرین پر آپ کو کال کرنے کا بٹن بنے گا۔")}</p>
           </div>
         </div>

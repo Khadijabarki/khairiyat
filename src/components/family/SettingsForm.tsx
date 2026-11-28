@@ -60,7 +60,7 @@ export default function SettingsForm({ name, canRename }: { name: string; canRen
       {canRename && (
         <section className="ui-card mt-5 p-5">
           <SectionHeading icon="user" title={t("Your Name", "آپ کا نام")} description={t("Shown in the app instead of your email.", "ایپ میں ای میل کی جگہ یہ دکھایا جائے گا۔")} />
-          <input aria-label={t("Your Name", "آپ کا نام")} maxLength={60} autoComplete="name" required value={nextName} onChange={(e) => setNextName(e.target.value)} className="ui-input" />
+          <input aria-label={t("Your Name", "آپ کا نام")} maxLength={60} autoComplete="name" dir="auto" required value={nextName} onChange={(e) => setNextName(e.target.value)} className="ui-input" />
         </section>
       )}
 

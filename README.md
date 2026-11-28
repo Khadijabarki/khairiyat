@@ -54,6 +54,7 @@ To try the whole flow, create a family account, add a parent, open their QR link
 - Each call rings for 5 minutes (or 2, chosen for each family member), then shows as a missed call; after no answer or "Later", Khairiyat calls again 15 minutes after the first call and, if that one isn't answered either, tells the family
 - **Daily call** at the chosen time, with a retry if unanswered and an alert on the dashboard if the retry is also unanswered; **Call now** button, which waits while a call is ringing or in progress and shows what is happening
 - After each conversation: a short summary, scores (mood, sleep, pain, medicine, food) and a message preview
+- The AI gathers those five in natural conversation; if the parent is unwell it asks about that first, and in an emergency it drops the report questions altogether
 - **Notifications on the family's phone or computer** (optional, one tap to turn on): emergencies during the call, the summary after it, and unanswered calls
 - Live alerts during the call, 7-day charts and history; the dashboard refreshes by itself
 - **Voice messages**: the son or daughter records up to a minute; the parent hears it ("Ali ka paigham aaya hai") at the start of the next conversation, and the dashboard shows when it was heard
@@ -173,7 +174,7 @@ npm run dev          # http://localhost:3000
 
 | Command | What it checks |
 |---|---|
-| `npm test` | 135 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
+| `npm test` | 136 offline unit tests: safety rules, voice messages, the doctor report, script conversion, security helpers, push addresses, summary validation, saving calls when the AI fails, scheduling, AI instructions |
 | `npm run test:e2e` | 26 checks of the family flow in a real Chrome browser, including another family being blocked (needs a running app; set `BASE_URL` to test a deployment) |
 | `npm run test:ai` | 6 checks of a live Gemini conversation through the app (uses a little API quota) |
 

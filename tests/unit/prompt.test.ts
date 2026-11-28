@@ -67,6 +67,15 @@ describe("buildSystemPrompt", () => {
     assert.ok(evening.includes("Abhi kisi tay waqt wali dawai ka waqt nahi hai"));
   });
 
+  it("collects the daily report, but not while the parent is unwell or in an emergency", () => {
+    const p = buildSystemPrompt(parent(), []);
+    assert.ok(p.includes("ROZ KI REPORT"));
+    for (const topic of ["dil/mood", "dard ya takleef", "neend", "khana", "dawai"]) assert.ok(p.includes(topic), topic);
+    assert.ok(p.includes("report ka KOI sawal mat poocho"));
+    assert.ok(p.includes("Ali ko khabar"));
+    assert.ok(p.includes("Tum khud kisi ko phone nahi kar sakti"));
+  });
+
   it("tells the AI the current Pakistan time", () => {
     assert.ok(buildSystemPrompt(parent(), []).includes("Abhi Pakistan mein asal waqt hai"));
   });

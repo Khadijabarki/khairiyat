@@ -25,7 +25,7 @@ export function AuthForm({ mode }: { mode: "signin" | "signup" }) {
       {isSignUp && (
         <>
           <label htmlFor="full_name" className="mt-4 block text-sm font-medium text-stone-700">{t("Your Name", "آپ کا نام")}</label>
-          <input id="full_name" name="full_name" autoComplete="name" maxLength={60} className={inputClass} />
+          <input id="full_name" name="full_name" dir="auto" autoComplete="name" maxLength={60} className={inputClass} />
         </>
       )}
 
